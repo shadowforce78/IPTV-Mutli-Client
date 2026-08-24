@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/IptvClient.Android/IptvClient.Android.csproj" />
+    <Project Path="src/IptvClient.Core/IptvClient.Core.csproj" />
+    <Project Path="src/IptvClient.Desktop/IptvClient.Desktop.csproj" />
+    <Project Path="src/IptvClient/IptvClient.csproj" />
+  </Folder>
+</Solution>
