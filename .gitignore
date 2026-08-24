@@ -1,0 +1,65 @@
+## .NET / Visual Studio / Rider / VS Code
+
+# Build results
+[Bb]in/
+[Oo]bj/
+[Oo]ut/
+[Ll]og/
+[Ll]ogs/
+
+# IDE folders
+.vs/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# VS Code (keep shared settings, ignore personal ones)
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
+
+# Rider
+*.DotSettings.user
+
+# NuGet
+*.nupkg
+*.snupkg
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+*.nuget.props
+*.nuget.targets
+
+# Android / Java
+*.apk
+*.aab
+*.ap_
+*.aar
+local.properties
+.gradle/
+**/obj/Debug/
+**/obj/Release/
+
+# Avalonia / MSBuild misc
+*.pidb
+*.svclog
+*.scc
+BundleArtifacts/
+publish/
+
+# OS cruft
+.DS_Store
+Thumbs.db
+
+# Rider .NET user prefs
+*.userprefs
+
+# Secrets / local machine config — voir README pour la config attendue
+appsettings.Local.json
+appsettings.*.local.json
+**/config.local.json
+secrets/
+*.env

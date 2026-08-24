@@ -1,0 +1,21 @@
+# Force LF everywhere so Linux <-> Windows dev ne se battent pas sur les fins de ligne.
+* text=auto eol=lf
+
+# Fichiers binaires : pas de conversion, pas de diff texte
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+*.icns binary
+*.ttf binary
+*.otf binary
+*.dll binary
+*.so binary
+*.dylib binary
+
+# Windows a besoin de CRLF pour ses scripts batch
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Scripts shell : LF obligatoire même généré sous Windows
+*.sh text eol=lf
