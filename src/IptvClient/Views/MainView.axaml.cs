@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Runtime.InteropServices;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Data;
 using Avalonia.Input;
 using Avalonia.Threading;
 using IptvClient.ViewModels;
@@ -31,6 +32,19 @@ public partial class MainView : UserControl
         // throwing, since OperatingSystem.IsWindows() gates every use of it below.
         _cursorPollTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
         _cursorPollTimer.Tick += OnCursorPollTick;
+
+        // LibVLCSharp.Avalonia.VideoView unconditionally sets MediaPlayer.Hwnd, a
+        // Windows/Linux/macOS-only concept — the Android build of LibVLCSharp.Shared doesn't
+        // have that member at all, so constructing VideoView there is an instant
+        // MissingMethodException on launch (confirmed on a physical device). Android needs its
+        // own video surface (libVLC's attachViews-on-a-native-View mechanism, not built yet —
+        // see CLAUDE.md); for now it just gets an empty placeholder instead of crashing.
+        if (!OperatingSystem.IsAndroid())
+        {
+            var videoView = new LibVLCSharp.Avalonia.VideoView();
+            videoView.Bind(LibVLCSharp.Avalonia.VideoView.MediaPlayerProperty, new Binding(nameof(MainViewModel.MediaPlayer)));
+            VideoHost.Content = videoView;
+        }
     }
 
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)

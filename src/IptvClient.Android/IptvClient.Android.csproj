@@ -18,8 +18,17 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Git-ignored, machine-local: same real M3U playlist URL as the desktop head's
+         appsettings.Local.json (see App.axaml.cs / Application.cs for how it's read — Android
+         has no "next to the exe" location, so it's bundled as a raw asset instead). Condition
+         keeps a fresh clone without this file building fine, same as the desktop head. -->
+    <AndroidAsset Include="Assets\appsettings.Local.json" Condition="Exists('Assets\appsettings.Local.json')" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Avalonia.Android" />
     <PackageReference Include="Xamarin.AndroidX.Core.SplashScreen" />
+    <PackageReference Include="VideoLAN.LibVLC.Android" />
   </ItemGroup>
 
   <ItemGroup>

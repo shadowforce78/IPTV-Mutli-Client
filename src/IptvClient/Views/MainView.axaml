@@ -4,7 +4,6 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:IptvClient.ViewModels"
              xmlns:views="using:IptvClient.Views"
-             xmlns:vlc="clr-namespace:LibVLCSharp.Avalonia;assembly=LibVLCSharp.Avalonia"
              mc:Ignorable="d" d:DesignWidth="1000" d:DesignHeight="700"
              x:Class="IptvClient.Views.MainView"
              x:DataType="vm:MainViewModel">
@@ -44,13 +43,22 @@
              nothing Avalonia-rendered layered on top of it in the same Grid cell would ever
              actually be visible (the native content always wins that "airspace"). The control
              strip below is a Popup instead: a genuine separate top-level window, positioned to
-             overlap this Border's bottom edge, which *can* paint over the native surface. -->
+             overlap this Border's bottom edge, which *can* paint over the native surface.
+
+             VideoHost is an empty placeholder here — MainView.axaml.cs fills it with an actual
+             LibVLCSharp.Avalonia.VideoView only when NOT running on Android. That control
+             unconditionally sets MediaPlayer.Hwnd (a Windows/Linux/macOS-only concept); the
+             Android build of LibVLCSharp.Shared doesn't have that member at all, so
+             instantiating VideoView there is an instant MissingMethodException crash on
+             launch, confirmed live on a physical device. Android needs its own video surface
+             (libVLC's attachViews-on-a-native-View mechanism) — not built yet, tracked in
+             CLAUDE.md. -->
         <Border Grid.Row="1"
                 Name="VideoArea"
                 Background="Black"
                 MinHeight="200"
                 PointerMoved="OnVideoAreaPointerMoved">
-            <vlc:VideoView MediaPlayer="{Binding MediaPlayer}" />
+            <ContentControl Name="VideoHost" />
         </Border>
 
         <Popup Name="ControlsPopup"
