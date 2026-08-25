@@ -114,6 +114,11 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     [ObservableProperty]
     public partial string? StreamInfoText { get; set; }
 
+    public IReadOnlyList<AspectRatioOption> AspectRatios { get; } = AspectRatioOption.All;
+
+    [ObservableProperty]
+    public partial AspectRatioOption SelectedAspectRatio { get; set; } = AspectRatioOption.Auto;
+
     /// <summary>0-100, mirrors libVLC's own range. Two-way bound to the volume slider.</summary>
     [ObservableProperty]
     public partial int Volume { get; set; } = 100;
@@ -182,6 +187,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             MediaPlayer.SetSpu(value.Id);
         }
     }
+
+    partial void OnSelectedAspectRatioChanged(AspectRatioOption value) => MediaPlayer.AspectRatio = value.Value;
 
     public async Task LoadPlaylistAsync(string source)
     {

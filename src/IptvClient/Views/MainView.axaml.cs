@@ -14,6 +14,7 @@ public partial class MainView : UserControl
     private readonly DispatcherTimer _cursorPollTimer;
     private MainViewModel? _viewModel;
     private POINT? _lastCursorPos;
+    private IntPtr _windowHandle;
 
     public MainView()
     {
@@ -35,6 +36,7 @@ public partial class MainView : UserControl
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
+        _windowHandle = TopLevel.GetTopLevel(this)?.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
         if (OperatingSystem.IsWindows())
         {
             _cursorPollTimer.Start();
@@ -54,9 +56,14 @@ public partial class MainView : UserControl
             return;
         }
 
-        if (_lastCursorPos is not { } last || last.X != pos.X || last.Y != pos.Y)
+        var moved = _lastCursorPos is not { } last || last.X != pos.X || last.Y != pos.Y;
+        _lastCursorPos = pos;
+
+        // Without this, moving the mouse over some *other* focused app would still reveal our
+        // controls, since GetCursorPos reports the cursor's screen position regardless of
+        // which window — or which process — is actually underneath it.
+        if (moved && _windowHandle != IntPtr.Zero && GetForegroundWindow() == _windowHandle)
         {
-            _lastCursorPos = pos;
             _viewModel?.NotifyPointerActivity();
         }
     }
@@ -95,8 +102,8 @@ public partial class MainView : UserControl
     {
         var rows = RootGrid.RowDefinitions;
         rows[0].Height = isFullscreen ? new GridLength(0) : GridLength.Auto; // status bar
-        rows[3].Height = isFullscreen ? new GridLength(0) : GridLength.Auto; // splitter
-        rows[4].Height = isFullscreen ? new GridLength(0) : new GridLength(5, GridUnitType.Star); // tabs
+        rows[2].Height = isFullscreen ? new GridLength(0) : GridLength.Auto; // splitter
+        rows[3].Height = isFullscreen ? new GridLength(0) : new GridLength(5, GridUnitType.Star); // tabs
 
         if (TopLevel.GetTopLevel(this) is Window window)
         {
@@ -113,4 +120,7 @@ public partial class MainView : UserControl
 
     [DllImport("user32.dll")]
     private static extern bool GetCursorPos(out POINT point);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetForegroundWindow();
 }

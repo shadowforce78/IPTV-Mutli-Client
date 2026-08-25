@@ -8,42 +8,58 @@
              mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="500"
              x:Class="IptvClient.Views.ChannelListView"
              x:DataType="vm:ChannelListViewModel">
-    <Grid ColumnDefinitions="220,*">
-        <ListBox Grid.Column="0"
-                 ItemsSource="{Binding Groups}"
-                 SelectedItem="{Binding SelectedGroup}">
-            <ListBox.ItemTemplate>
-                <DataTemplate x:DataType="vm:ChannelGroup">
-                    <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" />
-                </DataTemplate>
-            </ListBox.ItemTemplate>
-        </ListBox>
-
-        <DockPanel Grid.Column="1" Margin="8,0,0,0">
-            <TextBox DockPanel.Dock="Top"
-                     PlaceholderText="Rechercher…"
-                     Text="{Binding SearchText}"
-                     Margin="0,0,0,8" />
-            <ListBox ItemsSource="{Binding Items}"
-                     DoubleTapped="OnItemDoubleTapped">
+    <Grid ColumnDefinitions="240,16,*" Margin="12">
+        <!-- Groups card -->
+        <Border Grid.Column="0"
+                Background="{StaticResource AppSurfaceBrush}"
+                CornerRadius="12"
+                Padding="6">
+            <ListBox ItemsSource="{Binding Groups}"
+                     SelectedItem="{Binding SelectedGroup}">
                 <ListBox.ItemTemplate>
-                    <DataTemplate x:DataType="models:Channel">
-                        <StackPanel Orientation="Horizontal" Margin="0,2" Spacing="8">
-                            <Border Width="40" Height="40" CornerRadius="4" ClipToBounds="True"
-                                    Background="#22FFFFFF" VerticalAlignment="Center">
-                                <Image asyncImageLoader:ImageLoader.Source="{Binding TvgLogo}"
-                                       Stretch="Uniform" />
-                            </Border>
-                            <StackPanel VerticalAlignment="Center">
-                                <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
-                                <TextBlock Text="{Binding GroupTitle}"
-                                           FontSize="11"
-                                           Opacity="0.6" />
-                            </StackPanel>
-                        </StackPanel>
+                    <DataTemplate x:DataType="vm:ChannelGroup">
+                        <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" />
                     </DataTemplate>
                 </ListBox.ItemTemplate>
             </ListBox>
-        </DockPanel>
+        </Border>
+
+        <!-- Channels card -->
+        <Border Grid.Column="2"
+                Background="{StaticResource AppSurfaceBrush}"
+                CornerRadius="12"
+                Padding="10">
+            <DockPanel>
+                <TextBox DockPanel.Dock="Top"
+                         PlaceholderText="Rechercher…"
+                         Text="{Binding SearchText}"
+                         Background="{StaticResource AppSurfaceElevatedBrush}"
+                         BorderThickness="0"
+                         Margin="0,0,0,10" />
+                <ListBox ItemsSource="{Binding Items}"
+                         DoubleTapped="OnItemDoubleTapped">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="models:Channel">
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <Border Width="44" Height="44"
+                                        CornerRadius="10"
+                                        ClipToBounds="True"
+                                        Background="{StaticResource AppSurfaceElevatedBrush}"
+                                        VerticalAlignment="Center">
+                                    <Image asyncImageLoader:ImageLoader.Source="{Binding TvgLogo}"
+                                           Stretch="Uniform" />
+                                </Border>
+                                <StackPanel VerticalAlignment="Center" Spacing="2">
+                                    <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Text="{Binding GroupTitle}"
+                                               FontSize="11"
+                                               Foreground="{StaticResource AppTextSecondaryBrush}" />
+                                </StackPanel>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </DockPanel>
+        </Border>
     </Grid>
 </UserControl>

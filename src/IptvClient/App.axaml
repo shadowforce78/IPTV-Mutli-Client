@@ -11,8 +11,57 @@
         <local:ViewLocator />
     </Application.DataTemplates>
 
+    <Application.Resources>
+        <!-- Design tokens — the app's own palette on top of FluentTheme's dark defaults.
+             Kept separate from FluentTheme's own SystemAccentColor etc. (not overridden)
+             so built-in control theming stays untouched; these are only pulled in by our
+             own styles/views below. -->
+        <Color x:Key="AppBackgroundColor">#0C0C10</Color>
+        <Color x:Key="AppSurfaceColor">#18181F</Color>
+        <Color x:Key="AppSurfaceElevatedColor">#22222C</Color>
+        <Color x:Key="AppBorderColor">#2A2A36</Color>
+        <Color x:Key="AppAccentColor">#8B5CF6</Color>
+        <Color x:Key="AppAccentMutedColor">#3D3350</Color>
+        <Color x:Key="AppTextSecondaryColor">#9A9AAC</Color>
+
+        <SolidColorBrush x:Key="AppBackgroundBrush" Color="{StaticResource AppBackgroundColor}" />
+        <SolidColorBrush x:Key="AppSurfaceBrush" Color="{StaticResource AppSurfaceColor}" />
+        <SolidColorBrush x:Key="AppSurfaceElevatedBrush" Color="{StaticResource AppSurfaceElevatedColor}" />
+        <SolidColorBrush x:Key="AppBorderBrush" Color="{StaticResource AppBorderColor}" />
+        <SolidColorBrush x:Key="AppAccentBrush" Color="{StaticResource AppAccentColor}" />
+        <SolidColorBrush x:Key="AppAccentMutedBrush" Color="{StaticResource AppAccentMutedColor}" />
+        <SolidColorBrush x:Key="AppTextSecondaryBrush" Color="{StaticResource AppTextSecondaryColor}" />
+    </Application.Resources>
+
     <Application.Styles>
         <FluentTheme />
+
+        <!-- Rounded, evenly padded rows everywhere lists are used (channel groups, channels,
+             track pickers) instead of FluentTheme's default edge-to-edge rectangle. -->
+        <Style Selector="ListBox">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="ListBoxItem">
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="Margin" Value="4,2" />
+            <Setter Property="Padding" Value="10,8" />
+        </Style>
+
+        <Style Selector="TextBox">
+            <Setter Property="CornerRadius" Value="10" />
+        </Style>
+        <Style Selector="ComboBox">
+            <Setter Property="CornerRadius" Value="10" />
+        </Style>
+
+        <Style Selector="TabControl">
+            <Setter Property="Padding" Value="16,8,16,0" />
+        </Style>
+        <Style Selector="TabItem">
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="Padding" Value="4,8" />
+            <Setter Property="Margin" Value="0,0,24,0" />
+        </Style>
 
         <!-- Flat, borderless "transport" buttons for the video overlay control bar — icon or
              icon+label content, no default Button chrome. Hover/pressed feedback still comes
@@ -20,10 +69,17 @@
         <Style Selector="Button.transport">
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="Padding" Value="10,6" />
-            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="10" />
+            <Setter Property="CornerRadius" Value="20" />
             <Setter Property="Foreground" Value="White" />
             <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+        </Style>
+        <!-- Icon-only transport buttons (play/pause, mute, fullscreen): fixed circular
+             footprint so they line up evenly with each other regardless of their icon. -->
+        <Style Selector="Button.transport.icon">
+            <Setter Property="Width" Value="40" />
+            <Setter Property="Height" Value="40" />
         </Style>
     </Application.Styles>
 </Application>
