@@ -3,7 +3,8 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="using:IptvClient.ViewModels"
-             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             xmlns:views="using:IptvClient.Views"
+             mc:Ignorable="d" d:DesignWidth="1000" d:DesignHeight="600"
              x:Class="IptvClient.Views.MainView"
              x:DataType="vm:MainViewModel">
     <Design.DataContext>
@@ -12,7 +13,19 @@
         <vm:MainViewModel />
     </Design.DataContext>
 
-    <TextBox Text="{Binding Greeting}"
-             HorizontalAlignment="Center"
-             VerticalAlignment="Center" />
+    <DockPanel>
+        <TextBlock DockPanel.Dock="Top"
+                   Text="{Binding StatusMessage}"
+                   Margin="8"
+                   Opacity="0.7" />
+
+        <TabControl>
+            <TabItem Header="TV en direct">
+                <views:ChannelListView DataContext="{Binding Live}" />
+            </TabItem>
+            <TabItem Header="Films &amp; Séries">
+                <views:ChannelListView DataContext="{Binding Vod}" />
+            </TabItem>
+        </TabControl>
+    </DockPanel>
 </UserControl>

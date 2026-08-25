@@ -1,0 +1,48 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:vm="using:IptvClient.ViewModels"
+             xmlns:models="using:IptvClient.Core.Models"
+             xmlns:asyncImageLoader="clr-namespace:AsyncImageLoader;assembly=AsyncImageLoader.Avalonia"
+             mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="500"
+             x:Class="IptvClient.Views.ChannelListView"
+             x:DataType="vm:ChannelListViewModel">
+    <Grid ColumnDefinitions="220,*">
+        <ListBox Grid.Column="0"
+                 ItemsSource="{Binding Groups}"
+                 SelectedItem="{Binding SelectedGroup}">
+            <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="vm:ChannelGroup">
+                    <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" />
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+
+        <DockPanel Grid.Column="1" Margin="8,0,0,0">
+            <TextBox DockPanel.Dock="Top"
+                     PlaceholderText="Rechercher…"
+                     Text="{Binding SearchText}"
+                     Margin="0,0,0,8" />
+            <ListBox ItemsSource="{Binding Items}">
+                <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="models:Channel">
+                        <StackPanel Orientation="Horizontal" Margin="0,2" Spacing="8">
+                            <Border Width="40" Height="40" CornerRadius="4" ClipToBounds="True"
+                                    Background="#22FFFFFF" VerticalAlignment="Center">
+                                <Image asyncImageLoader:ImageLoader.Source="{Binding TvgLogo}"
+                                       Stretch="Uniform" />
+                            </Border>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Text="{Binding GroupTitle}"
+                                           FontSize="11"
+                                           Opacity="0.6" />
+                            </StackPanel>
+                        </StackPanel>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </DockPanel>
+    </Grid>
+</UserControl>

@@ -19,4 +19,10 @@
   <ItemGroup>
     <ProjectReference Include="..\IptvClient\IptvClient.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <!-- Git-ignored, machine-local: real M3U playlist URL. Absent on a fresh clone, so the
+         Condition keeps that machine's build from failing while there's nothing to copy. -->
+    <None Include="appsettings.Local.json" Condition="Exists('appsettings.Local.json')" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>
