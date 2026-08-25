@@ -118,11 +118,10 @@ play it).
   vlc-plugin-base`). A Snap-installed VLC does not work here — its libVLC is
   sandboxed and other processes can't dlopen it.
 - Android: `VideoLAN.LibVLC.Android` is referenced and `Core.Initialize()`
-  is called (see "Android build" below), but actual playback is **not**
-  wired up — `LibVLCSharp.Avalonia.VideoView` (the control used on desktop)
-  doesn't support Android at all and crashes the app if instantiated there.
-  See "Android build" for the fix that keeps the app launchable in the
-  meantime and what real video-on-Android would need instead.
+  is called. Playback goes through a *different* control than desktop's
+  `LibVLCSharp.Avalonia.VideoView` (which doesn't support Android at all) —
+  see `VlcVideoHost` under "Android build" below for the real mechanism and
+  why.
 
 `LibVLCSharp.Shared.Core.Initialize()` is called once, in
 `IptvClient.Desktop/Program.cs`, before `BuildAvaloniaApp()` — it loads the
@@ -275,6 +274,28 @@ so a fresh clone without the file still builds.
   instances (`DataContext="{Binding Live}"` / `"{Binding Vod}"`).
   `ChannelListView` is the reusable group-list + search-box + item-list
   layout, shared by both tabs.
+- **Responsive: side-by-side cards on a wide window, drill-down panels on a
+  narrow one** (built for Android in portrait, where the original
+  desktop-shaped two-column layout genuinely didn't fit — groups and channel
+  names were both illegibly cramped). `ChannelListView.axaml.cs` measures
+  its own width (`SizeChanged` + an initial check on `DataContextChanged`,
+  700px breakpoint) and sets `ChannelListViewModel.IsNarrowLayout`; every
+  other piece of the adaptive behavior — which panel is visible, the shared
+  search box's `Grid.Column`/`ColumnSpan`, the back button — is *derived*
+  from that plus `IsShowingItems` inside the view-model (`IsGroupsPanelVisible`,
+  `ItemsColumn`, `ShowBackButton`, etc.), not decided in XAML, so the view
+  stays a thin measurement layer. Tapping a group in narrow mode navigates
+  to the items panel (`OnSelectedGroupChanged` sets `IsShowingItems = true`)
+  — except the auto-selected *default* group `SetItems` picks on load, which
+  must not itself trigger navigation (a `_suppressNavigation` flag brackets
+  that one assignment) or the app would always open on the items panel
+  instead of the groups list. The search box is shared between both panels
+  and both layouts and "overrides" whichever is showing — typing a query
+  jumps straight to filtered results even from the groups panel
+  (`OnSearchTextChanged` also sets `IsShowingItems = true` when non-empty).
+  In wide layout none of this matters: `IsGroupsPanelVisible`/
+  `IsItemsPanelVisible` both collapse to `!IsNarrowLayout`, i.e. always true,
+  reproducing the original always-both-visible desktop behavior exactly.
 
 **Images**: `AsyncImageLoader.Avalonia` (v3.8.0, needs `Avalonia >= 12.0.0`)
 provides the `Image` control's `asyncImageLoader:ImageLoader.Source`
@@ -299,10 +320,16 @@ worth a quick manual look before relying on it further.
 
 Status as of 2026-08-25 on the Windows machine, verified live on a physical
 device (`adb shell screencap`, not just "it built"): **builds, installs,
-launches, loads and browses the real playlist** — same channel/group counts
-as the desktop head (2399 live, 24363 movies/series), same visual design.
-**Video playback does not work yet** — see the `VideoView` finding below,
-the real remaining blocker, not tooling.
+launches, loads and browses the real playlist, adapts its layout to a phone
+in portrait, and plays real video with audio through `VlcVideoHost`**
+(confirmed by the user directly: "ça joue bien la vidéo"). **Known open
+issue**: the on-screen controls overlay could not be reliably shown/hidden
+by tapping the video once real playback started (see the tap-to-reveal
+writeup above) — a fix (transparent tap-catching overlay `View` stacked over
+the `VideoView`) is written but not yet redeployed/confirmed on this device;
+the last deploy attempt was blocked by the MIUI "Install via USB" prompt.
+Fullscreen specifically has therefore also never been confirmed working on
+Android, since it was only reachable through the buggy tap-to-reveal path.
 
 **Toolchain setup**, in the order that actually worked (each step's error
 message names the next missing piece — that's the fastest way to
@@ -362,32 +389,97 @@ left it without its own assemblies. Fix: add
 instead (slower deploy, but reliable — use it as the default for this
 project until fast-deploy is revisited).
 
-**`VideoView` does not work on Android — confirmed live on a physical
-device, not a guess.** `LibVLCSharp.Avalonia.VideoView`'s constructor
-unconditionally sets `MediaPlayer.Hwnd` (a Windows/Linux/macOS windowing
-concept); reflecting the Android-targeted `LibVLCSharp.dll`
-(`net10.0-android36.0`) shows its `MediaPlayer` has no `Hwnd`, `NsObject`,
-or `XWindow` member *at all* — Android's video output is a fundamentally
-different mechanism (libVLC's native `attachViews()` onto a real Android
-`View`/`Surface`, not a settable handle property), and `LibVLCSharp.Avalonia`
-doesn't implement that side — it only ships `net8.0`/`netstandard2.0`
-targets, no Android-specific one. Constructing `VideoView` on Android is
-therefore an immediate `MissingMethodException`, caught live via `adb
-logcat` as `FATAL EXCEPTION: main ... [System.MissingMethodException]:
-Method not found: void LibVLCSharp.Shared.MediaPlayer.set_Hwnd(intptr)`,
-right as `MainView` first attaches to the visual tree (i.e. the app opens
-and is gone within about a second — no time to see anything).
-**Current fix** (`MainView.axaml` + `.axaml.cs`): the video `Border` holds
-an empty named `ContentControl` (`VideoHost`) instead of a XAML-declared
-`VideoView`; the constructor only does
-`VideoHost.Content = new LibVLCSharp.Avalonia.VideoView { ... }` when
-`!OperatingSystem.IsAndroid()`. This unblocks the whole rest of the app on
-Android (browsing, search, all the ViewModel logic) — it just shows a
-static black box instead of video there. **Actual Android video playback
-is unbuilt** and needs its own native-`View` integration (a custom Avalonia
-`NativeControlHost`/`PlatformControl` on Android wired to libVLC's
-`attachViews`, or a different Android-specific video package) — treat this
-as a real, separate task, not a quick follow-up.
+**`LibVLCSharp.Avalonia.VideoView` does not work on Android — confirmed
+live on a physical device, not a guess.** Its constructor unconditionally
+sets `MediaPlayer.Hwnd` (a Windows/Linux/macOS windowing concept);
+reflecting the Android-targeted `LibVLCSharp.dll` (`net10.0-android36.0`)
+shows its `MediaPlayer` has no `Hwnd`, `NsObject`, or `XWindow` member *at
+all*. Constructing `VideoView` on Android is an immediate
+`MissingMethodException`, caught live via `adb logcat` as `FATAL EXCEPTION:
+main ... [System.MissingMethodException]: Method not found: void
+LibVLCSharp.Shared.MediaPlayer.set_Hwnd(intptr)`, right as `MainView` first
+attaches to the visual tree (app opens and is gone within about a second).
+An independent source hit the exact same wall
+(monsalma.net's Avalonia-video writeup) and worked around it by dropping
+LibVLCSharp entirely on Android in favor of ExoPlayer — a viable path, but
+a much bigger one (a second, unrelated media-player API to adapt the whole
+`MainViewModel`/`PlayerControlsView` binding surface to).
+
+**The actual fix keeps LibVLCSharp for both heads.** LibVLCSharp *does*
+ship a real Android video surface — it's just not the `LibVLCSharp.Avalonia`
+package. `LibVLCSharp.Platforms.Android.VideoView` (a `SurfaceView`
+subclass) lives directly inside the core `LibVLCSharp.dll` for the Android
+target — confirmed by inspecting the actual Android-targeted assembly via
+`System.Reflection.MetadataLoadContext` (needed instead of a normal
+`AssemblyLoadContext`/`Assembly.LoadFrom`, since `Mono.Android.dll` and
+friends are *reference*-only assemblies that throw `BadImageFormatException`
+if you try to load them for execution outside a real Android runtime —
+`MetadataLoadContext` is built exactly for inspecting assemblies without
+executing them; point its `PathAssemblyResolver` at the LibVLCSharp NuGet
+package's `net10.0-android36.0` lib folder plus the `Microsoft.Android.Ref.*`
+and `Microsoft.NETCore.App.Ref` packs under `dotnet/packs` for
+`Mono.Android.dll` / `System.Private.CoreLib.dll` etc.). Confirmed API:
+`.ctor(Context)` and a settable `MediaPlayer` property that internally
+drives libVLC's real Android attach mechanism (`Org.Videolan.Libvlc.AWindow`
++ `MediaPlayer.SetAndroidContext`) — none of which the app needs to touch
+directly.
+
+`IptvClient.Android/VlcVideoHost.cs` wraps that in Avalonia's own
+`NativeControlHost` — the documented way to embed a native Android `View`
+(https://docs.avaloniaui.net/docs/platform-specific-guides/android/embed-native-views,
+pattern taken from Avalonia's own `ControlCatalog.Android` sample,
+`EmbedSample.Android.cs`): `CreateNativeControlCore` casts the `parent`
+handle to `AndroidViewControlHandle` to get its `.View.Context`, constructs
+`new LibVLCSharp.Platforms.Android.VideoView(context) { MediaPlayer = ... }`,
+wraps it together with a tap-catching overlay (see below) in a `FrameLayout`,
+and returns `new AndroidViewControlHandle(layout)`.
+
+**Wiring it into the shared `MainView` without breaking desktop**: the
+shared `IptvClient` project can't reference `VlcVideoHost` directly — it's
+Android-only, Desktop wouldn't compile against it. `App.AndroidVideoHostFactory`
+(a static `Func<MediaPlayer, Action, Control>?` on `App`, alongside the existing
+`SettingsOverride` for the same reason) is the indirection: Android's
+`Application.CustomizeAppBuilder` sets it to `(mp, onTap) => new VlcVideoHost(mp, onTap)`
+before Avalonia finishes starting; `MainView`'s video `Border` holds an
+empty named `ContentControl` (`VideoHost`) instead of a XAML-declared
+`VideoView`, and `MainView.axaml.cs` fills it two different ways depending
+on platform — desktop constructs `LibVLCSharp.Avalonia.VideoView` directly
+in the constructor (bound to `MediaPlayer` via `Binding`, same as always);
+Android calls the factory from `OnDataContextChanged` instead, since
+`VlcVideoHost` needs the actual `MediaPlayer` instance up front (its
+constructor parameter) rather than a lazy binding, and the constructor
+runs before `DataContext` is set. The `Action` parameter is "the user tapped
+the video surface", routed to `MainViewModel.ToggleControlsVisibility()` —
+native Android touch on a `SurfaceView` doesn't bubble into Avalonia's own
+pointer pipeline any more than Windows mouse-move does (same airspace class
+of issue, touch flavor), so `VlcVideoHost` wires a real Android click
+listener and calls this directly instead.
+
+**Tapping the video to reveal controls stopped working specifically once
+real playback started — confirmed live, not guessed.** A `Click` listener
+attached directly to the `VideoView` (the `SurfaceView` libVLC renders into)
+fired fine while the surface was idle/black (no media loaded yet), but
+silently stopped firing the moment a channel/movie actually started playing
+— found by the user isolating the exact repro (idle tap works, post-play tap
+doesn't). Working theory: once `MediaPlayer` actually attaches via libVLC's
+own `AWindow`/`attachViews` mechanism, something in that path takes over
+touch handling for the surface, ahead of our listener. **Fix**: don't rely
+on the `VideoView`'s own touch behavior at all — `CreateNativeControlCore`
+now returns a `FrameLayout` containing the `VideoView` plus a second, plain
+transparent Android `View` stacked on top (`Clickable = true`, its own
+`Click` listener calling `_onTap`). Normal Android touch dispatch follows
+View z-order regardless of what a `SurfaceView` is doing internally with its
+own rendering surface, so this overlay reliably catches taps in both idle
+and playing states rather than depending on the `SurfaceView`'s own
+click behavior. (Separately, a single physical tap was also observed
+firing the click handler up to 4 times in one burst — suspected
+`CreateNativeControlCore` being called more than once without a matching
+`DestroyNativeControlCore` on this device/setup — debounced defensively at
+400ms in the handler regardless of root cause.) **This fix is written but
+not yet confirmed on-device** — the redeploy needed to verify it was
+blocked by the MIUI "Install via USB" confirmation dialog (see below); pick
+up by redeploying and re-testing tap-to-reveal both before and after
+starting playback.
 
 **Config on Android**: no "next to the exe" file location exists there, so
 `appsettings.Local.json` is instead bundled as a raw Android asset
@@ -430,7 +522,34 @@ verify `GetForegroundWindow() == target hwnd` right before every click/key
 send and abort otherwise — don't assume `SetForegroundWindow`'s return value
 or `ShowWindow` guarantee focus actually moved.
 
-## Multi-machine development
+## Testing the app visually on Android
+
+`adb shell screencap` / `adb pull` / `adb shell input tap|text|keyevent`
+against a physical device (`adb devices` must list it first — USB debugging
+on) is a reliable substitute for the Windows GUI-automation issue above, but
+carries its own two gotchas, both hit live in this project:
+
+- **Git Bash mangles `/sdcard/...`-style paths before `adb` ever sees them.**
+  MSYS path conversion rewrites any argument that looks like a Unix absolute
+  path into a Windows path, which corrupts on-device paths like
+  `/sdcard/screen.png` and makes `adb shell screencap ...`/`adb pull ...`
+  fail (`screencap` prints its own usage text — from `adb`'s point of view
+  the command looked malformed). Fix: prefix the command with
+  `MSYS_NO_PATHCONV=1`.
+- **`adb shell input keyevent 4` (system Back) can exit the app entirely,
+  not just dismiss whatever's on top of it.** Sent once intending only to
+  dismiss an on-screen keyboard, it instead popped the app's entire
+  back-stack and landed on a completely unrelated app that happened to be
+  underneath in the device's task history (confirmed via screenshot) — the
+  same class of "stray input on the user's real device" risk as the
+  Windows `SetForegroundWindow` incident below, just triggered by app
+  navigation state instead of window focus. Avoid `keyevent 4` unless the
+  app's back-stack depth at that moment is actually known; screenshot
+  before and after any Android input sequence rather than trusting
+  previously-recorded coordinates or assuming a key event stayed inside
+  the app.
+
+## Testing the app visually on Windows
 
 This project is developed from both a Linux laptop and a Windows desktop,
 kept in sync purely through this git repo — a Claude Code session's file

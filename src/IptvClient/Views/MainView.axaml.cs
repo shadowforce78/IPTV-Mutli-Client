@@ -36,9 +36,9 @@ public partial class MainView : UserControl
         // LibVLCSharp.Avalonia.VideoView unconditionally sets MediaPlayer.Hwnd, a
         // Windows/Linux/macOS-only concept — the Android build of LibVLCSharp.Shared doesn't
         // have that member at all, so constructing VideoView there is an instant
-        // MissingMethodException on launch (confirmed on a physical device). Android needs its
-        // own video surface (libVLC's attachViews-on-a-native-View mechanism, not built yet —
-        // see CLAUDE.md); for now it just gets an empty placeholder instead of crashing.
+        // MissingMethodException on launch (confirmed on a physical device). Android gets its
+        // video surface from App.AndroidVideoHostFactory instead (see OnDataContextChanged —
+        // it needs the MediaPlayer instance up front, which isn't available yet here).
         if (!OperatingSystem.IsAndroid())
         {
             var videoView = new LibVLCSharp.Avalonia.VideoView();
@@ -94,6 +94,15 @@ public partial class MainView : UserControl
         if (_viewModel is not null)
         {
             _viewModel.PropertyChanged += OnViewModelPropertyChanged;
+
+            // Android's video surface needs the MediaPlayer instance up front (unlike
+            // LibVLCSharp.Avalonia.VideoView on desktop, which just binds to it), so this is
+            // deferred to here rather than the constructor, where DataContext isn't set yet.
+            if (OperatingSystem.IsAndroid() && VideoHost.Content is null && App.AndroidVideoHostFactory is { } factory)
+            {
+                var viewModel = _viewModel;
+                VideoHost.Content = factory(viewModel.MediaPlayer, () => viewModel.ToggleControlsVisibility());
+            }
         }
     }
 

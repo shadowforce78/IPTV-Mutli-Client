@@ -247,6 +247,23 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         _hideControlsTimer.Start();
     }
 
+    /// <summary>Android's equivalent of NotifyPointerActivity — there's no hover on a
+    /// touchscreen, so tapping the video toggles the controls (hide if already showing,
+    /// otherwise show + restart the auto-hide countdown) rather than just always revealing
+    /// them. Wired up from VlcVideoHost's native tap listener (see MainView.axaml.cs).</summary>
+    public void ToggleControlsVisibility()
+    {
+        if (IsControlsVisible)
+        {
+            IsControlsVisible = false;
+            _hideControlsTimer.Stop();
+        }
+        else
+        {
+            NotifyPointerActivity();
+        }
+    }
+
     [RelayCommand]
     private void TogglePlayPause()
     {

@@ -22,6 +22,11 @@ namespace IptvClient.Android
             // the desktop head.
             LibVLCSharp.Shared.Core.Initialize();
 
+            // The shared MainView can't reference VlcVideoHost directly (it's Android-only —
+            // Desktop wouldn't compile), so it goes through this factory hook instead. See
+            // VlcVideoHost.cs for why LibVLCSharp.Avalonia.VideoView itself doesn't work here.
+            App.AndroidVideoHostFactory = (mediaPlayer, onTap) => new VlcVideoHost(mediaPlayer, onTap);
+
             // No "next to the exe" file location on Android — appsettings.Local.json is
             // bundled as a raw asset instead (see the csproj's AndroidAsset item) and read
             // through AssetManager rather than System.IO. A missing asset (e.g. a fresh clone
