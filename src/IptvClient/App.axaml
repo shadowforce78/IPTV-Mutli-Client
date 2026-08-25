@@ -2,8 +2,10 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="using:IptvClient"
              x:Class="IptvClient.App"
-             RequestedThemeVariant="Default">
-             <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
+             RequestedThemeVariant="Dark">
+             <!-- Forced dark rather than following the system theme — video content and a
+                  dark player chrome go together regardless of the user's OS preference,
+                  same call most media apps make. -->
 
     <Application.DataTemplates>
         <local:ViewLocator />
@@ -11,5 +13,17 @@
 
     <Application.Styles>
         <FluentTheme />
+
+        <!-- Flat, borderless "transport" buttons for the video overlay control bar — icon or
+             icon+label content, no default Button chrome. Hover/pressed feedback still comes
+             from FluentTheme's own Button states, this only resets the idle look. -->
+        <Style Selector="Button.transport">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="10,6" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
     </Application.Styles>
 </Application>

@@ -24,7 +24,8 @@
                      PlaceholderText="Rechercher…"
                      Text="{Binding SearchText}"
                      Margin="0,0,0,8" />
-            <ListBox ItemsSource="{Binding Items}">
+            <ListBox ItemsSource="{Binding Items}"
+                     DoubleTapped="OnItemDoubleTapped">
                 <ListBox.ItemTemplate>
                     <DataTemplate x:DataType="models:Channel">
                         <StackPanel Orientation="Horizontal" Margin="0,2" Spacing="8">

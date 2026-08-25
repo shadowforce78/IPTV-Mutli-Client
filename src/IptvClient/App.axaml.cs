@@ -42,6 +42,7 @@ public partial class App : Application
             {
                 DataContext = mainViewModel
             };
+            desktop.Exit += (_, _) => mainViewModel.Dispose();
         }
         else if (ApplicationLifetime is IActivityApplicationLifetime singleViewFactoryApplicationLifetime)
         {

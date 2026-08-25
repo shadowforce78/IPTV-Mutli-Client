@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using IptvClient.Core.Models;
 
 namespace IptvClient.ViewModels;
@@ -27,6 +28,19 @@ public partial class ChannelListViewModel : ViewModelBase
 
     [ObservableProperty]
     public partial string SearchText { get; set; } = string.Empty;
+
+    /// <summary>Raised when the view asks to play a channel (e.g. double-click) — the owner
+    /// (MainViewModel) supplies the actual playback, this view-model only knows about browsing.</summary>
+    public event Action<Channel>? PlayRequested;
+
+    [RelayCommand]
+    private void Play(Channel? channel)
+    {
+        if (channel is not null)
+        {
+            PlayRequested?.Invoke(channel);
+        }
+    }
 
     public void SetItems(IReadOnlyList<Channel> items)
     {
