@@ -8,34 +8,57 @@
              mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="500"
              x:Class="IptvClient.Views.ChannelListView"
              x:DataType="vm:ChannelListViewModel">
-    <Grid ColumnDefinitions="240,16,*" Margin="12">
-        <!-- Groups card -->
-        <Border Grid.Column="0"
-                Background="{StaticResource AppSurfaceBrush}"
-                CornerRadius="12"
-                Padding="6">
-            <ListBox ItemsSource="{Binding Groups}"
-                     SelectedItem="{Binding SelectedGroup}">
-                <ListBox.ItemTemplate>
-                    <DataTemplate x:DataType="vm:ChannelGroup">
-                        <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" />
-                    </DataTemplate>
-                </ListBox.ItemTemplate>
-            </ListBox>
-        </Border>
+    <!-- Adaptive: side-by-side groups+items cards on a wide window (desktop), or a single
+         drill-down panel at a time on a narrow one (phone portrait) — ChannelListView.axaml.cs
+         measures its own width and sets IsNarrowLayout; everything else (which panel shows,
+         column spans, the back button) is derived from that + IsShowingItems in the
+         view-model, not decided here. -->
+    <Grid Margin="12" RowDefinitions="Auto,*">
+        <!-- Search bar is shared between both panels and both layouts, and "overrides" —
+             typing a query jumps straight to filtered results even from the groups panel. -->
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*" ColumnSpacing="8" Margin="0,0,0,12">
+            <Button Grid.Column="0"
+                    Classes="transport icon"
+                    Command="{Binding NavigateBackCommand}"
+                    IsVisible="{Binding ShowBackButton}"
+                    Background="{StaticResource AppSurfaceBrush}"
+                    ToolTip.Tip="Retour">
+                <Path Data="M11,3 L5,8 L11,13"
+                      Stroke="White" StrokeThickness="1.8" StrokeLineCap="Round" StrokeJoin="Round"
+                      Width="14" Height="14" Stretch="Uniform" />
+            </Button>
+            <TextBox Grid.Column="1"
+                     PlaceholderText="Rechercher…"
+                     Text="{Binding SearchText}"
+                     Background="{StaticResource AppSurfaceBrush}"
+                     BorderThickness="0" />
+        </Grid>
 
-        <!-- Channels card -->
-        <Border Grid.Column="2"
-                Background="{StaticResource AppSurfaceBrush}"
-                CornerRadius="12"
-                Padding="10">
-            <DockPanel>
-                <TextBox DockPanel.Dock="Top"
-                         PlaceholderText="Rechercher…"
-                         Text="{Binding SearchText}"
-                         Background="{StaticResource AppSurfaceElevatedBrush}"
-                         BorderThickness="0"
-                         Margin="0,0,0,10" />
+        <Grid Grid.Row="1" ColumnDefinitions="240,16,*">
+            <!-- Groups card -->
+            <Border Grid.Column="0"
+                    Grid.ColumnSpan="{Binding GroupsColumnSpan}"
+                    IsVisible="{Binding IsGroupsPanelVisible}"
+                    Background="{StaticResource AppSurfaceBrush}"
+                    CornerRadius="12"
+                    Padding="6">
+                <ListBox ItemsSource="{Binding Groups}"
+                         SelectedItem="{Binding SelectedGroup}">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="vm:ChannelGroup">
+                            <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" />
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Border>
+
+            <!-- Channels card -->
+            <Border Grid.Column="{Binding ItemsColumn}"
+                    Grid.ColumnSpan="{Binding ItemsColumnSpan}"
+                    IsVisible="{Binding IsItemsPanelVisible}"
+                    Background="{StaticResource AppSurfaceBrush}"
+                    CornerRadius="12"
+                    Padding="10">
                 <ListBox ItemsSource="{Binding Items}"
                          DoubleTapped="OnItemDoubleTapped">
                     <ListBox.ItemTemplate>
@@ -59,7 +82,7 @@
                         </DataTemplate>
                     </ListBox.ItemTemplate>
                 </ListBox>
-            </DockPanel>
-        </Border>
+            </Border>
+        </Grid>
     </Grid>
 </UserControl>
