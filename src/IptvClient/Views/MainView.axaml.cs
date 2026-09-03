@@ -17,6 +17,12 @@ public partial class MainView : UserControl
     private POINT? _lastCursorPos;
     private IntPtr _windowHandle;
 
+    // Linux/X11 side of the same cursor-poll workaround (see TryInitX11/IsOurAppFocused).
+    private IntPtr _x11Display;
+    private IntPtr _x11Root;
+    private IntPtr _netWmPidAtom;
+    private (int X, int Y)? _lastX11CursorPos;
+
     public MainView()
     {
         InitializeComponent();
@@ -55,15 +61,43 @@ public partial class MainView : UserControl
         {
             _cursorPollTimer.Start();
         }
+        else if (OperatingSystem.IsLinux())
+        {
+            // Same airspace problem as Windows (see the class comment above), same cursor-poll
+            // workaround in spirit, but X11 has no analogue of GetForegroundWindow to gate it
+            // with — see IsOurAppFocused for what that actually took to get right.
+            TryInitX11();
+            if (_x11Display != IntPtr.Zero)
+            {
+                _cursorPollTimer.Start();
+            }
+        }
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
         _cursorPollTimer.Stop();
+        if (_x11Display != IntPtr.Zero)
+        {
+            XCloseDisplay(_x11Display);
+            _x11Display = IntPtr.Zero;
+        }
         base.OnDetachedFromVisualTree(e);
     }
 
     private void OnCursorPollTick(object? sender, EventArgs e)
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            OnWindowsCursorPollTick();
+        }
+        else if (OperatingSystem.IsLinux())
+        {
+            OnLinuxCursorPollTick();
+        }
+    }
+
+    private void OnWindowsCursorPollTick()
     {
         if (!GetCursorPos(out var pos))
         {
@@ -80,6 +114,107 @@ public partial class MainView : UserControl
         {
             _viewModel?.NotifyPointerActivity();
         }
+    }
+
+    private void TryInitX11()
+    {
+        try
+        {
+            _x11Display = XOpenDisplay(IntPtr.Zero);
+            if (_x11Display != IntPtr.Zero)
+            {
+                _x11Root = XDefaultRootWindow(_x11Display);
+                _netWmPidAtom = XInternAtom(_x11Display, "_NET_WM_PID", onlyIfExists: 0);
+            }
+        }
+        catch (DllNotFoundException)
+        {
+            // No libX11 to load at all — e.g. a pure-Wayland session with no XWayland. Degrades
+            // to "no auto-reveal while hovering the video" on Linux, same as every other platform
+            // this poll doesn't cover, rather than throwing.
+            _x11Display = IntPtr.Zero;
+        }
+    }
+
+    private void OnLinuxCursorPollTick()
+    {
+        if (XQueryPointer(_x11Display, _x11Root, out _, out _, out var rootX, out var rootY, out _, out _, out _) == 0)
+        {
+            return;
+        }
+
+        var moved = _lastX11CursorPos is not { } last || last.X != rootX || last.Y != rootY;
+        _lastX11CursorPos = (rootX, rootY);
+
+        if (moved && IsOurAppFocused())
+        {
+            _viewModel?.NotifyPointerActivity();
+        }
+    }
+
+    // X11 has nothing like GetForegroundWindow, so this can't just compare XIDs the way the
+    // Windows path compares HWNDs — confirmed by testing against two real running apps on this
+    // machine (not guessed): for our own Avalonia window, XGetInputFocus happens to return our
+    // top-level's own XID directly, but for a GTK terminal window checked the same way,
+    // XGetInputFocus returned some other, unrelated window's XID entirely (XQueryTree showed it
+    // parented straight to the root, nothing to do with the terminal's own top-level) — a
+    // toolkit-internal focus-proxy window, not something TryGetPlatformHandle()/_windowHandle
+    // would ever match. Since that means a plain XID match can't be trusted to generalize across
+    // toolkits/window managers, walk up from the focused window looking for a _NET_WM_PID
+    // property instead: every WM-managed top-level carries one (set by the toolkit, read by the
+    // window manager), so the first ancestor that has one at all tells us which process actually
+    // owns the focus, regardless of how many focus-proxy windows sit in between.
+    private bool IsOurAppFocused()
+    {
+        if (XGetInputFocus(_x11Display, out var focus, out _) == 0 || focus == IntPtr.Zero)
+        {
+            return false;
+        }
+
+        var ourPid = (uint)Environment.ProcessId;
+        var window = focus;
+        for (var depth = 0; depth < 10 && window != IntPtr.Zero && window != _x11Root; depth++)
+        {
+            if (TryGetNetWmPid(window, out var pid))
+            {
+                return pid == ourPid;
+            }
+
+            if (XQueryTree(_x11Display, window, out _, out var parent, out var children, out _) == 0)
+            {
+                break;
+            }
+
+            if (children != IntPtr.Zero)
+            {
+                XFree(children);
+            }
+
+            window = parent;
+        }
+
+        return false;
+    }
+
+    private bool TryGetNetWmPid(IntPtr window, out uint pid)
+    {
+        pid = 0;
+        var status = XGetWindowProperty(_x11Display, window, _netWmPidAtom, 0, 1, delete: 0, AnyPropertyType,
+            out var actualType, out _, out var itemCount, out _, out var prop);
+
+        if (status != 0 || prop == IntPtr.Zero)
+        {
+            return false;
+        }
+
+        var found = actualType != IntPtr.Zero && itemCount.ToInt64() > 0;
+        if (found)
+        {
+            pid = (uint)Marshal.ReadInt32(prop);
+        }
+
+        XFree(prop);
+        return found;
     }
 
     private void OnDataContextChanged(object? sender, EventArgs e)
@@ -146,4 +281,37 @@ public partial class MainView : UserControl
 
     [DllImport("user32.dll")]
     private static extern IntPtr GetForegroundWindow();
+
+    private const int AnyPropertyType = 0;
+
+    [DllImport("libX11.so.6")]
+    private static extern IntPtr XOpenDisplay(IntPtr displayName);
+
+    [DllImport("libX11.so.6")]
+    private static extern int XCloseDisplay(IntPtr display);
+
+    [DllImport("libX11.so.6")]
+    private static extern IntPtr XDefaultRootWindow(IntPtr display);
+
+    [DllImport("libX11.so.6")]
+    private static extern IntPtr XInternAtom(IntPtr display, string atomName, int onlyIfExists);
+
+    [DllImport("libX11.so.6")]
+    private static extern int XQueryPointer(IntPtr display, IntPtr w, out IntPtr root, out IntPtr child,
+        out int rootX, out int rootY, out int winX, out int winY, out uint mask);
+
+    [DllImport("libX11.so.6")]
+    private static extern int XGetInputFocus(IntPtr display, out IntPtr focusReturn, out int revertToReturn);
+
+    [DllImport("libX11.so.6")]
+    private static extern int XQueryTree(IntPtr display, IntPtr w, out IntPtr rootReturn, out IntPtr parentReturn,
+        out IntPtr childrenReturn, out uint nchildrenReturn);
+
+    [DllImport("libX11.so.6")]
+    private static extern int XGetWindowProperty(IntPtr display, IntPtr w, IntPtr property, long longOffset,
+        long longLength, int delete, IntPtr reqType, out IntPtr actualTypeReturn, out int actualFormatReturn,
+        out IntPtr nitemsReturn, out IntPtr bytesAfterReturn, out IntPtr propReturn);
+
+    [DllImport("libX11.so.6")]
+    private static extern int XFree(IntPtr data);
 }

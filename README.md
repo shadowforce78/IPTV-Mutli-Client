@@ -69,8 +69,14 @@ si besoin plus tard.
   en Snap ne fonctionne pas** (confinement Snap, la lib n'est pas accessible aux
   autres apps). Installer la version apt en plus :
   ```bash
-  sudo apt install libvlc-dev libvlc5 vlc-plugin-base
+  sudo apt install libvlc-dev libvlc5 vlc-plugin-base vlc-plugin-video-output
   ```
+  `vlc-plugin-video-output` est requis séparément — sans lui `libvlc.so` se
+  charge très bien mais libVLC n'a aucun module de sortie vidéo GUI (X11/XCB/GL)
+  disponible et retombe sur le module `fb` (framebuffer console), qui échoue
+  hors tty brut (`cannot get terminal mode (Inappropriate ioctl for device)`,
+  suivi d'erreurs de décodage h264 en cascade). `vlc-plugin-base` seul ne
+  suffit pas, contrairement à ce qu'on pourrait attendre du nom.
 - **Android** : package NuGet `VideoLAN.LibVLC.Android` (à ajouter une fois le
   workload `android` installé — `dotnet add src/IptvClient.Android package VideoLAN.LibVLC.Android`).
 

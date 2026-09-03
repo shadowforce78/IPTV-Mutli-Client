@@ -114,9 +114,17 @@ play it).
 
 - Windows: handled by the `VideoLAN.LibVLC.Windows` package, nothing extra.
 - Linux: **not** covered by NuGet. Needs system libVLC installed via the
-  distro package manager (Debian/Ubuntu: `libvlc-dev libvlc5
-  vlc-plugin-base`). A Snap-installed VLC does not work here — its libVLC is
-  sandboxed and other processes can't dlopen it.
+  distro package manager (Debian/Ubuntu: `libvlc-dev libvlc5 vlc-plugin-base
+  vlc-plugin-video-output`). A Snap-installed VLC does not work here — its
+  libVLC is sandboxed and other processes can't dlopen it. `vlc-plugin-base`
+  alone is not enough despite the name — it doesn't carry the X11/XCB/GL video
+  output modules (those are packaged separately as `vlc-plugin-video-output`
+  on Ubuntu 24.04/Debian trixie). Without it, `libvlc.so` loads fine but
+  libVLC has no usable GUI vout, so it falls back to the `fb` (Linux
+  framebuffer) module, which fails outside a raw tty: `fb vout display error:
+  cannot get terminal mode (Inappropriate ioctl for device)`, immediately
+  followed by a cascade of h264 decoder errors (`get_buffer() failed`, `no
+  frame!`) since the decoder has nowhere to hand frames.
 - Android: `VideoLAN.LibVLC.Android` is referenced and `Core.Initialize()`
   is called. Playback goes through a *different* control than desktop's
   `LibVLCSharp.Avalonia.VideoView` (which doesn't support Android at all) —
@@ -194,24 +202,61 @@ touching an `[ObservableProperty]`.
   Paused always keeps it visible (`OnIsPlayingChanged(false)` stops the
   timer and forces `IsControlsVisible = true`).
 - **Hovering the video itself doesn't fire `PointerMoved`** — same airspace
-  issue: Windows delivers mouse-move straight to `VideoView`'s native HWND,
+  issue: the OS delivers mouse-move straight to `VideoView`'s native window,
   bypassing Avalonia's input pipeline, so a normal event handler on the
   containing `Grid` never sees it (only the letterboxed edges and the popup
-  itself, which *are* genuinely Avalonia-rendered, fire it normally).
-  Workaround in `MainView.axaml.cs`: a `DispatcherTimer` polls
-  `user32!GetCursorPos` every 200ms and calls `NotifyPointerActivity()` on
-  movement — Windows-only, gated by `OperatingSystem.IsWindows()`, so it
-  degrades to "no auto-reveal while hovering the video" rather than
-  throwing on Linux/Android. **This polls the cursor's absolute screen
-  position, not anything scoped to our window** — an early version revealed
-  the controls on mouse movement over *any* focused app, not just this one.
-  Fixed by caching this window's native handle
-  (`TopLevel.GetTopLevel(this)?.TryGetPlatformHandle()?.Handle`) in
-  `OnAttachedToVisualTree` and only calling `NotifyPointerActivity()` when
-  `user32!GetForegroundWindow()` equals it. Worth remembering as a class of
-  bug if this poll is ever extended: anything driven by absolute
-  screen/cursor state needs an explicit "is it actually ours" check that
-  per-control Avalonia events get for free.
+  itself, which *are* genuinely Avalonia-rendered, fire it normally). This
+  meant the controls popup, once auto-hidden 3s into playback, could never
+  be brought back — the reported symptom was simply "the controls don't
+  come back", since there was no code path left that could re-show them.
+  Workaround in `MainView.axaml.cs`: a `DispatcherTimer` polls the cursor
+  position every 200ms and calls `NotifyPointerActivity()` on movement,
+  gated to only fire when *this app* actually has focus (see below) — not
+  when hovering the video happens to also be hovering some other focused
+  app's window at the same screen coordinates, which an early Windows-only
+  version got wrong once already. Two independent platform implementations,
+  no shared abstraction since the native APIs involved don't share one:
+  - **Windows**: `user32!GetCursorPos`, gated by `OperatingSystem.IsWindows()`.
+    Caches this window's native handle
+    (`TopLevel.GetTopLevel(this)?.TryGetPlatformHandle()?.Handle`) in
+    `OnAttachedToVisualTree` and only calls `NotifyPointerActivity()` when
+    `user32!GetForegroundWindow()` equals it.
+  - **Linux**: `libX11.so.6` (`XQueryPointer`), gated by
+    `OperatingSystem.IsLinux()`, degrading to no-op (no throw) if
+    `XOpenDisplay` fails — e.g. a pure-Wayland session with no XWayland.
+    **X11 has no equivalent of `GetForegroundWindow` to gate this with** —
+    confirmed by testing against two different real windows on this machine
+    (not guessed): for this app's own Avalonia window, `XGetInputFocus`
+    happens to return our own top-level's XID directly, but for a GTK
+    terminal window checked the same way it returned some unrelated
+    toolkit-internal focus-proxy window's XID instead (parented straight to
+    the root, nothing to do with the terminal's own top-level) — so a plain
+    XID comparison, the direct X11 equivalent of the Windows check above,
+    can't be trusted to generalize across toolkits/window managers.
+    `IsOurAppFocused()` instead walks up from the focused window via
+    `XQueryTree` looking for a `_NET_WM_PID` property (every WM-managed
+    top-level carries one) and compares it to `Environment.ProcessId` —
+    verified end-to-end against a real running instance of this app on this
+    machine: `XGetInputFocus` returned its Avalonia client window directly,
+    which carried `_NET_WM_PID` exactly matching that process's actual PID.
+    **Not yet confirmed**: the full on-screen "hide, then hover the video,
+    then reappear" cycle after this fix — the API-level logic above was
+    validated with read-only X11 queries plus one targeted
+    `_NET_ACTIVE_WINDOW` activation, deliberately stopping short of
+    synthesizing mouse movement on the user's live shared desktop (a
+    coordinate-based synthetic click aimed at a just-launched test window
+    landed on an unrelated focused app instead during this investigation —
+    the window hadn't actually raised/focused the way the click math
+    assumed, the same class of "trusting a focus op without checking it
+    landed" mistake the Windows testing note below warns about, just in a
+    new environment). Pick up by having the actual user hover the video
+    after controls auto-hide and confirm they reappear.
+
+  Worth remembering as a class of bug if this poll is ever extended:
+  anything driven by absolute screen/cursor state needs an explicit "is it
+  actually ours" check that per-control Avalonia events get for free — and
+  on X11 specifically, "ours" can't be checked by XID comparison the way
+  Win32 HWNDs allow; it has to go through something like `_NET_WM_PID`.
 - Fullscreen (`MainViewModel.IsFullscreen`, toggled from the popup) is done
   at the `Window` level in `MainView.axaml.cs` (`WindowState.FullScreen` +
   collapsing the status/splitter/tabs rows to zero height), **not** via
