@@ -434,6 +434,52 @@ left it without its own assemblies. Fix: add
 instead (slower deploy, but reliable — use it as the default for this
 project until fast-deploy is revisited).
 
+**Toolchain setup on Linux**: verified end-to-end on 2026-09-11 on the Linux
+laptop this project is also developed from — noticeably less friction than
+the Windows path above since a system Android SDK and JDK were already
+present here.
+
+1. `dotnet workload install android` — no extra flags needed beyond what's
+   already used elsewhere in this doc; picked up the right Android SDK
+   pack versions (`36.1.2`) automatically.
+2. Android SDK: `~/Android/Sdk` already had `platforms/android-36` and
+   `build-tools/36.1.0` installed (via `sdkmanager`/Android Studio at some
+   earlier point), with `ANDROID_HOME`/`PATH` already exported from
+   `~/.bashrc` — nothing to add. If starting from nothing on a fresh Linux
+   machine, the Windows steps above for `cmdline-tools` + `sdkmanager` apply
+   the same way, just with Linux paths (`~/Android/Sdk` instead of
+   `%LOCALAPPDATA%\Android\Sdk`) and no zip-nesting gotcha (the Linux
+   `cmdline-tools` zip layout matches what `sdkmanager` expects directly).
+3. JDK: **no explicit `JAVA_HOME` was needed at all** — this machine has
+   `openjdk 21` installed system-wide (`java` on `PATH`, resolving to
+   `/usr/lib/jvm/java-21-openjdk-amd64`), and the Android build tooling
+   auto-detected it. Confirmed by a full `dotnet clean` + delete
+   `obj`/`bin` + rebuild with `JAVA_HOME` explicitly unset — still
+   succeeded. Only set `JAVA_HOME` explicitly if a machine has no `java` on
+   `PATH` or multiple JDKs installed and the wrong one gets picked.
+4. `dotnet build src/IptvClient.Android/IptvClient.Android.csproj` then
+   just works — no `-p:AndroidSdkDirectory=...` override needed since
+   `ANDROID_HOME` was already correct in the environment. Produces the same
+   `bin/Debug/net10.0-android/*.apk` / `*-Signed.apk` as the Windows build.
+   Only warnings: `XA0141` (libVLC's bundled `.so`s aren't yet built for
+   16KB page sizes, an Android-16-era future requirement) — harmless today,
+   nothing to fix on this project's side.
+5. No physical device was connected on this machine (`adb devices` listed
+   none), but an AVD was already configured (`Medium_Phone_API_36.1`,
+   `google_apis_playstore` x86_64) and KVM acceleration is available
+   (`emulator -accel-check` confirms it, user is in the `kvm` group) — booted
+   it headlessly with `emulator -avd Medium_Phone_API_36.1 -no-snapshot
+   -no-boot-anim` (backgrounded; takes ~1-2 min, poll
+   `adb shell getprop sys.boot_completed` for `1` rather than a fixed sleep).
+   Once `adb devices` shows it, the Windows
+   `-t:Run -p:EmbedAssembliesIntoApk=true` recipe carries over unchanged and
+   **is confirmed working on Linux** this way: installs, launches, and
+   `adb shell screencap` confirmed the real UI rendering correctly in the
+   narrow/portrait layout (tabs, search box, group cards) — "Aucune playlist
+   chargée" shown as expected since no `appsettings.Local.json`/Android
+   asset is configured on this machine. Video playback itself has not been
+   exercised this way (would need a playlist configured first).
+
 **`LibVLCSharp.Avalonia.VideoView` does not work on Android — confirmed
 live on a physical device, not a guess.** Its constructor unconditionally
 sets `MediaPlayer.Hwnd` (a Windows/Linux/macOS windowing concept);
