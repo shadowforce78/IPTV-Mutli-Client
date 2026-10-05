@@ -20,6 +20,20 @@ public static class AppSettingsLoader
         return Load(stream);
     }
 
+    /// <summary>Per-user settings file (playlist URL typed in the UI) in the platform's local
+    /// app-data folder — works on desktop and on Android (app-private storage), unlike a
+    /// "next to the exe" file.</summary>
+    public static string UserSettingsPath { get; } = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "IptvClient",
+        "settings.json");
+
+    public static void Save(string path, AppSettings settings)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(path, JsonSerializer.Serialize(settings, JsonOptions));
+    }
+
     /// <summary>Reads settings from an already-open stream (e.g. an Android asset).</summary>
     public static AppSettings Load(Stream stream) =>
         JsonSerializer.Deserialize<AppSettings>(stream, JsonOptions) ?? new AppSettings();

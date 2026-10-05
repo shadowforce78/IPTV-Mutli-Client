@@ -25,19 +25,38 @@
             <RowDefinition Height="5*" />
         </Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0"
-                   Text="{Binding StatusMessage}"
-                   Margin="16,12"
-                   FontSize="12"
-                   Foreground="{StaticResource AppTextSecondaryBrush}" />
+        <StackPanel Grid.Row="0">
+            <Grid ColumnDefinitions="*,Auto" Margin="16,12,16,0">
+                <TextBox Grid.Column="0"
+                         Watermark="URL de la playlist M3U (http://… ou chemin de fichier)"
+                         Text="{Binding PlaylistInput}">
+                    <TextBox.KeyBindings>
+                        <KeyBinding Gesture="Enter" Command="{Binding LoadFromInputCommand}" />
+                    </TextBox.KeyBindings>
+                </TextBox>
+                <Button Grid.Column="1"
+                        Margin="8,0,0,0"
+                        VerticalAlignment="Stretch"
+                        VerticalContentAlignment="Center"
+                        Content="Charger"
+                        IsEnabled="{Binding !IsLoading}"
+                        Command="{Binding LoadFromInputCommand}" />
+            </Grid>
 
-        <TextBlock Grid.Row="0"
-                   HorizontalAlignment="Right"
-                   Margin="16,12"
-                   FontSize="12"
-                   Foreground="{StaticResource AppTextSecondaryBrush}"
-                   IsVisible="{Binding CurrentChannel, Converter={x:Static ObjectConverters.IsNotNull}}"
-                   Text="{Binding CurrentChannel.Name, StringFormat='Lecture : {0}'}" />
+            <Grid>
+                <TextBlock Text="{Binding StatusMessage}"
+                           Margin="16,12"
+                           FontSize="12"
+                           Foreground="{StaticResource AppTextSecondaryBrush}" />
+
+                <TextBlock HorizontalAlignment="Right"
+                           Margin="16,12"
+                           FontSize="12"
+                           Foreground="{StaticResource AppTextSecondaryBrush}"
+                           IsVisible="{Binding CurrentChannel, Converter={x:Static ObjectConverters.IsNotNull}}"
+                           Text="{Binding CurrentChannel.Name, StringFormat='Lecture : {0}'}" />
+            </Grid>
+        </StackPanel>
 
         <!-- Video surface. VideoView is a NativeControlHost — a real native child window — so
              nothing Avalonia-rendered layered on top of it in the same Grid cell would ever

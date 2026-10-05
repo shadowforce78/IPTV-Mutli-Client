@@ -56,12 +56,29 @@ public partial class App : Application
         // next to the exe) — Android supplies SettingsOverride instead (see its own
         // Application.cs), since there's no equivalent "next to the exe" location there.
         var settingsPath = Path.Combine(AppContext.BaseDirectory, "appsettings.Local.json");
-        var settings = SettingsOverride ?? AppSettingsLoader.Load(settingsPath);
+        var fallback = SettingsOverride ?? AppSettingsLoader.Load(settingsPath);
+
+        // A URL the user typed in the UI (saved on a successful load) wins over the
+        // developer-provided appsettings.Local.json, which is now only a fallback.
+        AppSettings userSettings;
+        try
+        {
+            userSettings = AppSettingsLoader.Load(AppSettingsLoader.UserSettingsPath);
+        }
+        catch (Exception)
+        {
+            userSettings = new AppSettings();
+        }
+
+        var playlistUrl = !string.IsNullOrWhiteSpace(userSettings.PlaylistUrl)
+            ? userSettings.PlaylistUrl
+            : fallback.PlaylistUrl;
 
         var mainViewModel = new MainViewModel();
-        if (!string.IsNullOrWhiteSpace(settings.PlaylistUrl))
+        if (!string.IsNullOrWhiteSpace(playlistUrl))
         {
-            _ = mainViewModel.LoadPlaylistAsync(settings.PlaylistUrl);
+            mainViewModel.PlaylistInput = playlistUrl;
+            _ = mainViewModel.LoadPlaylistAsync(playlistUrl);
         }
 
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)

@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using IptvClient.Core.Configuration;
 using IptvClient.Core.M3u;
 using IptvClient.Core.Models;
 using LibVLCSharp.Shared;
@@ -77,6 +78,10 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     [ObservableProperty]
     public partial bool IsLoading { get; set; }
+
+    /// <summary>Playlist URL (or local file path) typed by the user in the top bar.</summary>
+    [ObservableProperty]
+    public partial string? PlaylistInput { get; set; }
 
     [ObservableProperty]
     public partial string StatusMessage { get; set; } = "Aucune playlist chargée.";
@@ -190,7 +195,29 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     partial void OnSelectedAspectRatioChanged(AspectRatioOption value) => MediaPlayer.AspectRatio = value.Value;
 
-    public async Task LoadPlaylistAsync(string source)
+    [RelayCommand]
+    private async Task LoadFromInput()
+    {
+        var source = PlaylistInput?.Trim();
+        if (string.IsNullOrEmpty(source))
+        {
+            return;
+        }
+
+        if (await LoadPlaylistAsync(source))
+        {
+            try
+            {
+                AppSettingsLoader.Save(AppSettingsLoader.UserSettingsPath, new AppSettings { PlaylistUrl = source });
+            }
+            catch (Exception)
+            {
+                // Persisting is a convenience; the playlist is already loaded.
+            }
+        }
+    }
+
+    public async Task<bool> LoadPlaylistAsync(string source)
     {
         IsLoading = true;
         StatusMessage = "Chargement de la playlist…";
@@ -210,10 +237,12 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             Live.SetItems(live);
             Vod.SetItems(vod);
             StatusMessage = $"{live.Count} chaînes live · {vod.Count} films/séries";
+            return true;
         }
         catch (Exception ex)
         {
             StatusMessage = $"Échec du chargement : {ex.Message}";
+            return false;
         }
         finally
         {
