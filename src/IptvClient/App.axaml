@@ -16,13 +16,13 @@
              Kept separate from FluentTheme's own SystemAccentColor etc. (not overridden)
              so built-in control theming stays untouched; these are only pulled in by our
              own styles/views below. -->
-        <Color x:Key="AppBackgroundColor">#0C0C10</Color>
-        <Color x:Key="AppSurfaceColor">#18181F</Color>
-        <Color x:Key="AppSurfaceElevatedColor">#22222C</Color>
-        <Color x:Key="AppBorderColor">#2A2A36</Color>
-        <Color x:Key="AppAccentColor">#8B5CF6</Color>
-        <Color x:Key="AppAccentMutedColor">#3D3350</Color>
-        <Color x:Key="AppTextSecondaryColor">#9A9AAC</Color>
+        <Color x:Key="AppBackgroundColor">#08080C</Color>
+        <Color x:Key="AppSurfaceColor">#131319</Color>
+        <Color x:Key="AppSurfaceElevatedColor">#1D1D26</Color>
+        <Color x:Key="AppBorderColor">#26262F</Color>
+        <Color x:Key="AppAccentColor">#7C6CFF</Color>
+        <Color x:Key="AppAccentMutedColor">#2A2650</Color>
+        <Color x:Key="AppTextSecondaryColor">#8E8EA3</Color>
 
         <SolidColorBrush x:Key="AppBackgroundBrush" Color="{StaticResource AppBackgroundColor}" />
         <SolidColorBrush x:Key="AppSurfaceBrush" Color="{StaticResource AppSurfaceColor}" />
@@ -42,25 +42,79 @@
             <Setter Property="Background" Value="Transparent" />
         </Style>
         <Style Selector="ListBoxItem">
-            <Setter Property="CornerRadius" Value="8" />
-            <Setter Property="Margin" Value="4,2" />
-            <Setter Property="Padding" Value="10,8" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Margin" Value="2,1" />
+            <Setter Property="Padding" Value="12,8" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="Background" Duration="0:0:0.15" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#14FFFFFF" />
+        </Style>
+        <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource AppAccentMutedBrush}" />
+        </Style>
+        <Style Selector="ListBoxItem:selected:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource AppAccentMutedBrush}" />
         </Style>
 
         <Style Selector="TextBox">
-            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="14,10" />
+            <Setter Property="MinHeight" Value="40" />
+            <Setter Property="Background" Value="{StaticResource AppSurfaceBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource AppBorderBrush}" />
         </Style>
         <Style Selector="ComboBox">
             <Setter Property="CornerRadius" Value="10" />
         </Style>
 
+        <!-- Accent "primary" button (Charger) -->
+        <Style Selector="Button.primary">
+            <Setter Property="Background" Value="{StaticResource AppAccentBrush}" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="20,0" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style Selector="Button.primary:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#9488FF" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+
+        <Style Selector="Slider">
+            <Setter Property="MinHeight" Value="20" />
+        </Style>
+        <Style Selector="Slider /template/ Track#PART_Track Thumb">
+            <Setter Property="Background" Value="White" />
+        </Style>
+
+        <!-- Segmented pill tabs instead of Fluent's underline tabs -->
         <Style Selector="TabControl">
-            <Setter Property="Padding" Value="16,8,16,0" />
+            <Setter Property="Padding" Value="16,4,16,0" />
         </Style>
         <Style Selector="TabItem">
-            <Setter Property="FontSize" Value="15" />
-            <Setter Property="Padding" Value="4,8" />
-            <Setter Property="Margin" Value="0,0,24,0" />
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Padding" Value="18,8" />
+            <Setter Property="Margin" Value="0,0,6,0" />
+            <Setter Property="MinHeight" Value="0" />
+            <Setter Property="CornerRadius" Value="999" />
+            <Setter Property="Foreground" Value="{StaticResource AppTextSecondaryBrush}" />
+        </Style>
+        <Style Selector="TabItem /template/ Border#PART_SelectedPipe">
+            <Setter Property="IsVisible" Value="False" />
+        </Style>
+        <Style Selector="TabItem:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#14FFFFFF" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+        <Style Selector="TabItem:selected /template/ ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource AppAccentMutedBrush}" />
+            <Setter Property="Foreground" Value="White" />
         </Style>
 
         <!-- Flat, borderless "transport" buttons for the video overlay control bar — icon or
@@ -80,6 +134,9 @@
         <Style Selector="Button.transport.icon">
             <Setter Property="Width" Value="40" />
             <Setter Property="Height" Value="40" />
+        </Style>
+        <Style Selector="Button.transport:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#22FFFFFF" />
         </Style>
     </Application.Styles>
 </Application>

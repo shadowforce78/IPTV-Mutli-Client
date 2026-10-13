@@ -13,7 +13,7 @@
          measures its own width and sets IsNarrowLayout; everything else (which panel shows,
          column spans, the back button) is derived from that + IsShowingItems in the
          view-model, not decided here. -->
-    <Grid Margin="12" RowDefinitions="Auto,*">
+    <Grid Margin="4,12,4,16" RowDefinitions="Auto,*">
         <!-- Search bar is shared between both panels and both layouts, and "overrides" —
              typing a query jumps straight to filtered results even from the groups panel. -->
         <Grid Grid.Row="0" ColumnDefinitions="Auto,*" ColumnSpacing="8" Margin="0,0,0,12">
@@ -30,8 +30,7 @@
             <TextBox Grid.Column="1"
                      PlaceholderText="Rechercher…"
                      Text="{Binding SearchText}"
-                     Background="{StaticResource AppSurfaceBrush}"
-                     BorderThickness="0" />
+                     BorderThickness="1" />
         </Grid>
 
         <Grid Grid.Row="1" ColumnDefinitions="240,16,*">
@@ -40,8 +39,10 @@
                     Grid.ColumnSpan="{Binding GroupsColumnSpan}"
                     IsVisible="{Binding IsGroupsPanelVisible}"
                     Background="{StaticResource AppSurfaceBrush}"
-                    CornerRadius="12"
-                    Padding="6">
+                    BorderBrush="{StaticResource AppBorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="16"
+                    Padding="8">
                 <ListBox ItemsSource="{Binding Groups}"
                          SelectedItem="{Binding SelectedGroup}">
                     <ListBox.ItemTemplate>
@@ -57,15 +58,17 @@
                     Grid.ColumnSpan="{Binding ItemsColumnSpan}"
                     IsVisible="{Binding IsItemsPanelVisible}"
                     Background="{StaticResource AppSurfaceBrush}"
-                    CornerRadius="12"
-                    Padding="10">
+                    BorderBrush="{StaticResource AppBorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="16"
+                    Padding="8">
                 <ListBox ItemsSource="{Binding Items}"
                          DoubleTapped="OnItemDoubleTapped">
                     <ListBox.ItemTemplate>
                         <DataTemplate x:DataType="models:Channel">
                             <StackPanel Orientation="Horizontal" Spacing="12">
-                                <Border Width="44" Height="44"
-                                        CornerRadius="10"
+                                <Border Width="48" Height="48"
+                                        CornerRadius="12"
                                         ClipToBounds="True"
                                         Background="{StaticResource AppSurfaceElevatedBrush}"
                                         VerticalAlignment="Center">

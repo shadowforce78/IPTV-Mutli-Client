@@ -18,11 +18,11 @@
          never resizes the video underneath while toggling. The outer Margin makes it float
          as a card above the video's bottom edge instead of touching it. -->
     <Border Margin="16"
-            Background="#CC17171F"
+            Background="#E60E0E14"
             BorderBrush="{StaticResource AppBorderBrush}"
             BorderThickness="1"
-            CornerRadius="16"
-            Padding="16,12"
+            CornerRadius="20"
+            Padding="20,14"
             PointerMoved="OnPointerMoved"
             Opacity="{Binding IsControlsVisible, Converter={StaticResource BoolToOpacity}}"
             IsHitTestVisible="{Binding IsControlsVisible}">
