@@ -29,7 +29,7 @@
             <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
                 <TextBlock Grid.Column="0" Text="IPTV" FontSize="18" FontWeight="Bold"
                            Foreground="{StaticResource AppAccentBrush}" VerticalAlignment="Center" />
-                <TextBox Grid.Column="1"
+                <TextBox Grid.Column="1" x:Name="PlaylistBox"
                          PlaceholderText="URL de la playlist M3U (http://… ou chemin de fichier)"
                          Text="{Binding PlaylistInput}">
                     <TextBox.KeyBindings>

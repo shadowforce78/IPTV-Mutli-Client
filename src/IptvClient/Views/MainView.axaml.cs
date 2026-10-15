@@ -62,6 +62,7 @@ public partial class MainView : UserControl
             XYFocus.SetNavigationModes(this, XYFocusNavigationModes.Enabled);
             Focusable = true;
             KeyDown += OnPlayerKeyDown;
+            AddHandler(KeyDownEvent, OnTextBoxRemoteNav, RoutingStrategies.Tunnel);
 
             // The native video surface paints over any Avalonia Popup, so on Android the controls
             // are a plain row under the video (always visible) instead of the overlay popup.
@@ -328,7 +329,12 @@ public partial class MainView : UserControl
         {
             if (browsing)
             {
-                if ((Tabs.SelectedItem as TabItem)?.Content is ChannelListView list)
+                if (PlaylistBox.IsEffectivelyVisible)
+                {
+                    // No playlist yet: land on the URL field so the remote / adb can fill it.
+                    PlaylistBox.Focus(NavigationMethod.Directional);
+                }
+                else if ((Tabs.SelectedItem as TabItem)?.Content is ChannelListView list)
                 {
                     list.FocusItems();
                 }
@@ -358,6 +364,31 @@ public partial class MainView : UserControl
         if (!show && !_viewModel.IsBrowserVisible)
         {
             Focus(NavigationMethod.Directional);
+        }
+    }
+
+    // A TextBox swallows the arrow keys for its caret, trapping D-pad focus inside it. Up/Down
+    // always leave; Left/Right leave only when the caret is already at that edge.
+    private void OnTextBoxRemoteNav(object? sender, KeyEventArgs e)
+    {
+        if (e.Source is not TextBox box)
+        {
+            return;
+        }
+
+        var length = box.Text?.Length ?? 0;
+        var direction = e.Key switch
+        {
+            Key.Up => NavigationDirection.Up,
+            Key.Down => NavigationDirection.Down,
+            Key.Left when box.CaretIndex == 0 => NavigationDirection.Left,
+            Key.Right when box.CaretIndex >= length => NavigationDirection.Right,
+            _ => (NavigationDirection?)null,
+        };
+
+        if (direction is { } d && TopLevel.GetTopLevel(this)?.FocusManager?.TryMoveFocus(d) == true)
+        {
+            e.Handled = true;
         }
     }
 
