@@ -25,7 +25,7 @@
             <RowDefinition Height="5*" />
         </Grid.RowDefinitions>
 
-        <StackPanel Grid.Row="0" Margin="20,16,20,0" Spacing="8">
+        <StackPanel Grid.Row="0" Margin="20,16,20,0" Spacing="8" IsVisible="{Binding ShowPlaylistBar}">
             <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12">
                 <TextBlock Grid.Column="0" Text="IPTV" FontSize="18" FontWeight="Bold"
                            Foreground="{StaticResource AppAccentBrush}" VerticalAlignment="Center" />
@@ -77,6 +77,7 @@
                 Background="Black"
                 MinHeight="200"
                 Margin="20,0"
+                IsVisible="{Binding IsPlayerVisible}"
                 PointerMoved="OnVideoAreaPointerMoved">
             <ContentControl Name="VideoHost" />
         </Border>
@@ -88,13 +89,13 @@
                PlacementGravity="Top"
                IsLightDismissEnabled="False"
                Width="{Binding #VideoArea.Bounds.Width}"
-               IsOpen="{Binding CurrentChannel, Converter={x:Static ObjectConverters.IsNotNull}}">
+               IsOpen="{Binding IsControlsPopupOpen}">
             <views:PlayerControlsView />
         </Popup>
 
-        <GridSplitter Grid.Row="2" Height="12" HorizontalAlignment="Stretch" Background="Transparent" />
+        <GridSplitter Grid.Row="2" Height="12" IsVisible="{Binding IsBrowserVisible}" HorizontalAlignment="Stretch" Background="Transparent" />
 
-        <TabControl Grid.Row="3">
+        <TabControl Grid.Row="3" Name="Tabs" IsVisible="{Binding IsBrowserVisible}">
             <TabItem Header="TV en direct">
                 <views:ChannelListView DataContext="{Binding Live}" />
             </TabItem>

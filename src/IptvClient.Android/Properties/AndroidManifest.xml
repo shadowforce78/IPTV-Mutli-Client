@@ -1,9 +1,9 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android" android:installLocation="auto">
 	<uses-permission android:name="android.permission.INTERNET" />
 	<!-- IPTV playlist/stream URLs are routinely plain http:// (third-party reseller panels,
 	     not something this app controls) — Android blocks all cleartext traffic by default
 	     since API 28, which is exactly what broke the very first playlist load attempt here
 	     ("Connection failure" with no other detail). -->
-	<application android:label="IptvClient" android:icon="@drawable/Icon" android:usesCleartextTraffic="true" />
+	<application android:label="IptvClient" android:icon="@drawable/Icon" android:banner="@drawable/Icon" android:usesCleartextTraffic="true" />
 </manifest>

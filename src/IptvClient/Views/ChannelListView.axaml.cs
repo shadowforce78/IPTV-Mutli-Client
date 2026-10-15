@@ -28,7 +28,37 @@ public partial class ChannelListView : UserControl
         }
     }
 
+    /// <summary>Gives the channel list keyboard/D-pad focus (shown with the focus ring).</summary>
+    public void FocusItems() => ItemsList.Focus(NavigationMethod.Directional);
+
+    // Touch: a single tap plays (double-tap is a desktop mouse idiom).
+    private void OnItemTapped(object? sender, TappedEventArgs e)
+    {
+        if (OperatingSystem.IsAndroid())
+        {
+            PlayFromEvent(e);
+        }
+    }
+
+    // Remote / keyboard: OK / Enter plays the focused channel.
+    private void OnItemsKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key == Key.Enter && ItemsList.SelectedItem is Channel channel && DataContext is ChannelListViewModel viewModel)
+        {
+            viewModel.PlayCommand.Execute(channel);
+            e.Handled = true;
+        }
+    }
+
     private void OnItemDoubleTapped(object? sender, TappedEventArgs e)
+    {
+        if (!OperatingSystem.IsAndroid())
+        {
+            PlayFromEvent(e);
+        }
+    }
+
+    private void PlayFromEvent(TappedEventArgs e)
     {
         if (e.Source is Control { DataContext: Channel channel } && DataContext is ChannelListViewModel viewModel)
         {

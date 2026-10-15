@@ -20,6 +20,8 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     private readonly LibVLC _libVlc;
     private readonly DispatcherTimer _hideControlsTimer;
     private bool _isSyncingPosition;
+    private bool _hasPlaylist;
+    private string _playlistSummary = "Aucune playlist chargée.";
 
     public MainViewModel()
     {
@@ -137,6 +139,30 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
     public bool IsWindowed => !IsFullscreen;
 
+    /// <summary>Android (phone landscape / Android TV) shows either the channel browser or the
+    /// player full-screen, never both: a remote can't drag a splitter, and a small preview
+    /// pane next to the lists isn't worth the focus-navigation mess. Desktop keeps both.</summary>
+    public static bool UsesPlayerScreen { get; } = OperatingSystem.IsAndroid();
+
+    public bool ShowFullscreenButton => !UsesPlayerScreen;
+
+    /// <summary>Android relies on the device/TV volume keys, which also frees room in the bar.</summary>
+    public bool ShowVolumeSlider => !UsesPlayerScreen;
+
+    public bool IsBrowserVisible => !UsesPlayerScreen || CurrentChannel is null;
+
+    /// <summary>URL bar + status line. On Android it only shows until a playlist has loaded —
+    /// the vertical room is worth more to the lists in landscape; a failed load brings it back.</summary>
+    public bool ShowPlaylistBar => IsBrowserVisible && (!UsesPlayerScreen || !_hasPlaylist);
+
+    /// <summary>Drives the controls Popup. A Popup anchors to its target once, when it opens, so on
+    /// Android it must open only after the layout swap has given the video area its real size —
+    /// opening it together with the swap pinned it to the top of the screen.</summary>
+    [ObservableProperty]
+    public partial bool IsControlsPopupOpen { get; set; }
+
+    public bool IsPlayerVisible => !UsesPlayerScreen || CurrentChannel is not null;
+
     public string PositionLabel => FormatTime(PositionSeconds);
 
     public string DurationLabel => FormatTime(DurationSeconds);
@@ -154,6 +180,26 @@ public partial class MainViewModel : ViewModelBase, IDisposable
             // Paused: keep the controls up rather than fading them out from under the user.
             _hideControlsTimer.Stop();
             IsControlsVisible = true;
+        }
+    }
+
+    partial void OnCurrentChannelChanged(Channel? value)
+    {
+        OnPropertyChanged(nameof(IsBrowserVisible));
+        OnPropertyChanged(nameof(ShowPlaylistBar));
+        OnPropertyChanged(nameof(IsPlayerVisible));
+
+        if (value is null)
+        {
+            IsControlsPopupOpen = false;
+        }
+        else if (!UsesPlayerScreen)
+        {
+            IsControlsPopupOpen = true;
+        }
+        else if (!IsControlsPopupOpen)
+        {
+            DispatcherTimer.RunOnce(() => IsControlsPopupOpen = CurrentChannel is not null, TimeSpan.FromMilliseconds(250));
         }
     }
 
@@ -236,12 +282,17 @@ public partial class MainViewModel : ViewModelBase, IDisposable
 
             Live.SetItems(live);
             Vod.SetItems(vod);
-            StatusMessage = $"{live.Count} chaînes live · {vod.Count} films/séries";
+            _playlistSummary = $"{live.Count} chaînes live · {vod.Count} films/séries";
+            StatusMessage = _playlistSummary;
+            _hasPlaylist = true;
+            OnPropertyChanged(nameof(ShowPlaylistBar));
             return true;
         }
         catch (Exception ex)
         {
             StatusMessage = $"Échec du chargement : {ex.Message}";
+            _hasPlaylist = false;
+            OnPropertyChanged(nameof(ShowPlaylistBar));
             return false;
         }
         finally
@@ -253,6 +304,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     private void PlayChannel(Channel channel)
     {
         CurrentChannel = channel;
+        IsFullscreen = UsesPlayerScreen;
         StatusMessage = $"Lecture : {channel.Name}";
 
         PositionSeconds = 0;
@@ -291,6 +343,18 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         {
             NotifyPointerActivity();
         }
+    }
+
+    /// <summary>Android: leave the player and go back to the channel lists (stops playback).</summary>
+    [RelayCommand]
+    public void ClosePlayer()
+    {
+        MediaPlayer.Stop();
+        _hideControlsTimer.Stop();
+        IsControlsVisible = true;
+        IsFullscreen = false;
+        CurrentChannel = null;
+        StatusMessage = _playlistSummary;
     }
 
     [RelayCommand]

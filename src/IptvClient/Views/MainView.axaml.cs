@@ -5,6 +5,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Data;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Threading;
 using IptvClient.ViewModels;
 
@@ -51,12 +52,26 @@ public partial class MainView : UserControl
             videoView.Bind(LibVLCSharp.Avalonia.VideoView.MediaPlayerProperty, new Binding(nameof(MainViewModel.MediaPlayer)));
             VideoHost.Content = videoView;
         }
+        else
+        {
+            // Android phone / Android TV: remote-friendly sizing and D-pad (arrow keys / OK)
+            // navigation across the whole UI.
+            FontSize = 16;
+            XYFocus.SetNavigationModes(this, XYFocusNavigationModes.Enabled);
+            Focusable = true;
+            KeyDown += OnPlayerKeyDown;
+        }
     }
 
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
-        _windowHandle = TopLevel.GetTopLevel(this)?.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
+        var topLevel = TopLevel.GetTopLevel(this);
+        _windowHandle = topLevel?.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
+        if (OperatingSystem.IsAndroid() && topLevel is not null)
+        {
+            ApplyAndroidLayout();
+        }
         if (OperatingSystem.IsWindows())
         {
             _cursorPollTimer.Start();
@@ -229,6 +244,7 @@ public partial class MainView : UserControl
         if (_viewModel is not null)
         {
             _viewModel.PropertyChanged += OnViewModelPropertyChanged;
+            ApplyAndroidLayout();
 
             // Android's video surface needs the MediaPlayer instance up front (unlike
             // LibVLCSharp.Avalonia.VideoView on desktop, which just binds to it), so this is
@@ -236,7 +252,26 @@ public partial class MainView : UserControl
             if (OperatingSystem.IsAndroid() && VideoHost.Content is null && App.AndroidVideoHostFactory is { } factory)
             {
                 var viewModel = _viewModel;
-                VideoHost.Content = factory(viewModel.MediaPlayer, () => viewModel.ToggleControlsVisibility());
+                // Taps are handled app-wide via App.ScreenTapped (the native view's own click
+                // listener is unreliable once video plays), so the per-view callback is a no-op.
+                VideoHost.Content = factory(viewModel.MediaPlayer, () => { });
+                App.BackHandler = () =>
+                {
+                    if (viewModel.CurrentChannel is null)
+                    {
+                        return false;
+                    }
+
+                    viewModel.ClosePlayer();
+                    return true;
+                };
+                App.ScreenTapped = () =>
+                {
+                    if (viewModel.IsPlayerVisible && viewModel.CurrentChannel is not null)
+                    {
+                        viewModel.NotifyPointerActivity();
+                    }
+                };
             }
         }
     }
@@ -247,6 +282,86 @@ public partial class MainView : UserControl
         {
             ApplyFullscreen(_viewModel.IsFullscreen);
         }
+        else if (e.PropertyName == nameof(MainViewModel.IsBrowserVisible))
+        {
+            ApplyAndroidLayout();
+        }
+    }
+
+    // Android shows the channel browser or the player, never both (see
+    // MainViewModel.UsesPlayerScreen): flip which grid row gets the space, and move D-pad focus
+    // to where the user will act next (the list when browsing, this view for player keys).
+    private void ApplyAndroidLayout()
+    {
+        if (!OperatingSystem.IsAndroid() || _viewModel is null)
+        {
+            return;
+        }
+
+        var browsing = _viewModel.IsBrowserVisible;
+        var rows = RootGrid.RowDefinitions;
+        rows[1].Height = browsing ? new GridLength(0) : new GridLength(1, GridUnitType.Star);
+        rows[2].Height = new GridLength(0);
+        rows[3].Height = browsing ? new GridLength(1, GridUnitType.Star) : new GridLength(0);
+
+        // Keeps content inside the TV-safe area while browsing; the video goes edge to edge.
+        RootGrid.Margin = browsing ? new Thickness(24, 12) : default;
+        VideoArea.Margin = default;
+        VideoArea.MinHeight = 0;
+
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (browsing)
+            {
+                if ((Tabs.SelectedItem as TabItem)?.Content is ChannelListView list)
+                {
+                    list.FocusItems();
+                }
+                else
+                {
+                    Tabs.Focus(NavigationMethod.Directional);
+                }
+            }
+            else
+            {
+                Focus(NavigationMethod.Directional);
+            }
+        }, DispatcherPriority.Background);
+    }
+
+    // Remote shortcuts while a channel is playing: OK = play/pause, Left/Right = +-10s,
+    // media keys, Esc/Back = leave. Any key also reveals the controls. Keys handled by a focused
+    // control inside the controls bar (Enter on a button, arrows in a slider) never reach here.
+    private void OnPlayerKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (_viewModel is not { CurrentChannel: not null } vm)
+        {
+            return;
+        }
+
+        vm.NotifyPointerActivity();
+        switch (e.Key)
+        {
+            case Key.Escape:
+                vm.ClosePlayer();
+                break;
+            case Key.Enter or Key.Space or Key.MediaPlayPause:
+                vm.TogglePlayPauseCommand.Execute(null);
+                break;
+            case Key.Left or Key.MediaPreviousTrack:
+                vm.SkipBackCommand.Execute(null);
+                break;
+            case Key.Right or Key.MediaNextTrack:
+                vm.SkipForwardCommand.Execute(null);
+                break;
+            case Key.MediaStop:
+                vm.ClosePlayer();
+                break;
+            default:
+                return;
+        }
+
+        e.Handled = true;
     }
 
     private void OnVideoAreaPointerMoved(object? sender, PointerEventArgs e) => _viewModel?.NotifyPointerActivity();
@@ -258,6 +373,18 @@ public partial class MainView : UserControl
     // consistent instead of handing the video surface off to libVLC's own window management.
     private void ApplyFullscreen(bool isFullscreen)
     {
+        if (OperatingSystem.IsAndroid())
+        {
+            // Android: the layout swap is handled by ApplyAndroidLayout; here just hide the
+            // status/navigation bars while the video is up.
+            if (TopLevel.GetTopLevel(this)?.InsetsManager is { } insets)
+            {
+                insets.IsSystemBarVisible = !isFullscreen;
+            }
+
+            return;
+        }
+
         var rows = RootGrid.RowDefinitions;
         rows[0].Height = isFullscreen ? new GridLength(0) : GridLength.Auto; // status bar
         rows[2].Height = isFullscreen ? new GridLength(0) : GridLength.Auto; // splitter

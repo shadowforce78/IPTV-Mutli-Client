@@ -62,8 +62,11 @@
                     BorderThickness="1"
                     CornerRadius="16"
                     Padding="8">
-                <ListBox ItemsSource="{Binding Items}"
-                         DoubleTapped="OnItemDoubleTapped">
+                <ListBox x:Name="ItemsList"
+                         ItemsSource="{Binding Items}"
+                         DoubleTapped="OnItemDoubleTapped"
+                         Tapped="OnItemTapped"
+                         KeyDown="OnItemsKeyDown">
                     <ListBox.ItemTemplate>
                         <DataTemplate x:DataType="models:Channel">
                             <StackPanel Orientation="Horizontal" Spacing="12">

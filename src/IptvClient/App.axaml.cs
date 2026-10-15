@@ -40,6 +40,14 @@ public partial class App : Application
     /// onto the native View and calls this instead.</summary>
     public static Func<MediaPlayer, Action, Control>? AndroidVideoHostFactory { get; set; }
 
+    /// <summary>Android raises this on any screen tap (from MainActivity.DispatchTouchEvent) —
+    /// MainView hooks it to reveal the player controls. See MainActivity for why it isn't a
+    /// normal view click.</summary>
+    public static Action? ScreenTapped { get; set; }
+
+    /// <summary>Android Back: returns true when the app consumed it (e.g. closed the player).</summary>
+    public static Func<bool>? BackHandler { get; set; }
+
     public override void Initialize()
     {
         ImageLoader.AsyncImageLoader = new LogoImageLoader();
