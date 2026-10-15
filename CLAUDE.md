@@ -601,6 +601,27 @@ playlist/stream URL this app is fed is liable to be plain HTTP.
 The `ApplicationId` placeholder (`com.CompanyName.IptvClient`) should also
 get a real value at some point, independent of whether it blocks a build.
 
+## Android landscape / Android TV layout
+
+Landscape-locked (`SensorLandscape`), leanback launcher + banner, touchscreen not
+required. Android shows the **channel browser or the player, never both**
+(`MainViewModel.UsesPlayerScreen`/`IsBrowserVisible`/`IsPlayerVisible`;
+`MainView.ApplyAndroidLayout` swaps the grid rows): tap/OK on a channel plays it
+edge to edge, Back (AndroidX `OnBackPressedCallback` in `MainActivity` →
+`App.BackHandler`) stops it and returns to the lists. D-pad: `XYFocus` enabled,
+`:focus-visible` ring styles in `App.axaml`, Enter plays the focused channel, in the
+player OK = play/pause, ←/→ = ±10s, any key reveals controls.
+
+Two airspace-class traps, both confirmed on a physical device: (1) a `Popup` is its
+own Android window and **swallows every touch while open, even at opacity 0** — so on
+Android the controls popup is only open while `IsControlsVisible`
+(`UpdateControlsPopup`), and the reveal tap is caught in
+`MainActivity.DispatchTouchEvent` → `App.ScreenTapped` (a click listener on the
+libVLC surface/overlay stops firing once video plays). (2) A Popup anchors to its
+target once, when it opens, so it is opened ~250ms *after* the layout swap, else it
+sticks to the top of the screen. The URL bar is hidden on Android once a playlist
+has loaded (`ShowPlaylistBar`) to give the lists vertical room.
+
 ## Testing the app visually on Windows
 
 `SetForegroundWindow` called from an external automation script (PowerShell)

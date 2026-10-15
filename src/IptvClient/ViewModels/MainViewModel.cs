@@ -21,6 +21,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     private readonly DispatcherTimer _hideControlsTimer;
     private bool _isSyncingPosition;
     private bool _hasPlaylist;
+    private bool _popupArmed;
     private string _playlistSummary = "Aucune playlist chargée.";
 
     public MainViewModel()
@@ -189,19 +190,27 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(ShowPlaylistBar));
         OnPropertyChanged(nameof(IsPlayerVisible));
 
-        if (value is null)
+        _popupArmed = !UsesPlayerScreen && value is not null;
+        if (UsesPlayerScreen && value is not null)
         {
-            IsControlsPopupOpen = false;
+            DispatcherTimer.RunOnce(() =>
+            {
+                _popupArmed = CurrentChannel is not null;
+                UpdateControlsPopup();
+            }, TimeSpan.FromMilliseconds(250));
         }
-        else if (!UsesPlayerScreen)
-        {
-            IsControlsPopupOpen = true;
-        }
-        else if (!IsControlsPopupOpen)
-        {
-            DispatcherTimer.RunOnce(() => IsControlsPopupOpen = CurrentChannel is not null, TimeSpan.FromMilliseconds(250));
-        }
+
+        UpdateControlsPopup();
     }
+
+    partial void OnIsControlsVisibleChanged(bool value) => UpdateControlsPopup();
+
+    // Desktop keeps the popup open for the whole playback and fades it by opacity. On Android a
+    // popup is its own window and swallows every touch while open — even fully transparent — so
+    // the Activity-level tap that brings the controls back would never fire; there the popup
+    // only exists while the controls are visible.
+    private void UpdateControlsPopup() =>
+        IsControlsPopupOpen = _popupArmed && (!UsesPlayerScreen || IsControlsVisible);
 
     partial void OnIsMutedChanged(bool value) => OnPropertyChanged(nameof(IsUnmuted));
 
