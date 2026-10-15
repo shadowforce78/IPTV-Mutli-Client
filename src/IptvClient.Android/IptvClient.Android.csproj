@@ -3,6 +3,7 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0-android</TargetFramework>
     <SupportedOSPlatformVersion>23</SupportedOSPlatformVersion>
+    <RuntimeIdentifiers>android-arm;android-arm64;android-x64</RuntimeIdentifiers>
     <Nullable>enable</Nullable>
     <ApplicationId>com.CompanyName.IptvClient</ApplicationId>
     <ApplicationVersion>1</ApplicationVersion>
