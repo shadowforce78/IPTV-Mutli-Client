@@ -6,7 +6,7 @@
         xmlns:views="using:IptvClient.Views"
         mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
         x:Class="IptvClient.Views.MainWindow"
-        Icon="/Assets/avalonia-logo.ico"
+        Icon="/Assets/logo.ico"
         Title="IPTV Multi-Client">
         <views:MainView />
 </Window>

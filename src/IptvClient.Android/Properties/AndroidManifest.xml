@@ -5,5 +5,5 @@
 	     not something this app controls) — Android blocks all cleartext traffic by default
 	     since API 28, which is exactly what broke the very first playlist load attempt here
 	     ("Connection failure" with no other detail). -->
-	<application android:label="IPTV Multi-Client" android:icon="@drawable/Icon" android:banner="@drawable/Icon" android:usesCleartextTraffic="true" />
+	<application android:label="IPTV Multi-Client" android:icon="@drawable/Icon" android:banner="@drawable/banner" android:usesCleartextTraffic="true" />
 </manifest>

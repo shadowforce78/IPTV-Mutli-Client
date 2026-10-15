@@ -9,6 +9,7 @@
 
   <PropertyGroup>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>..\IptvClient\Assets\logo.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
