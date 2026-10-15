@@ -41,8 +41,8 @@ public partial class App : Application
     public static Func<MediaPlayer, Action, Control>? AndroidVideoHostFactory { get; set; }
 
     /// <summary>Android raises this on any screen tap (from MainActivity.DispatchTouchEvent) —
-    /// MainView hooks it to reveal the player controls. See MainActivity for why it isn't a
-    /// normal view click.</summary>
+    /// MainView hooks it to reveal the player controls. A click listener on the native video
+    /// surface stops firing once libVLC renders into it, so the tap is caught above the views.</summary>
     public static Action? ScreenTapped { get; set; }
 
     /// <summary>Android Back: returns true when the app consumed it (e.g. closed the player).</summary>

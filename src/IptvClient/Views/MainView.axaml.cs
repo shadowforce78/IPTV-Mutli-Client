@@ -1,5 +1,6 @@
 using System;
 using System.ComponentModel;
+using System.Linq;
 using System.Runtime.InteropServices;
 using Avalonia;
 using Avalonia.Controls;
@@ -15,6 +16,7 @@ public partial class MainView : UserControl
 {
     private readonly DispatcherTimer _cursorPollTimer;
     private MainViewModel? _viewModel;
+    private PlayerControlsView? _androidControls;
     private POINT? _lastCursorPos;
     private IntPtr _windowHandle;
 
@@ -60,6 +62,14 @@ public partial class MainView : UserControl
             XYFocus.SetNavigationModes(this, XYFocusNavigationModes.Enabled);
             Focusable = true;
             KeyDown += OnPlayerKeyDown;
+
+            // The native video surface paints over any Avalonia Popup, so on Android the controls
+            // are a plain row under the video (always visible) instead of the overlay popup.
+            _androidControls = new PlayerControlsView();
+            Grid.SetRow(_androidControls, 2);
+            RootGrid.Children.Add(_androidControls);
+            ControlsPopup.Child = null;
+            RootGrid.Children.OfType<GridSplitter>().First().IsVisible = false;
         }
     }
 
@@ -255,6 +265,13 @@ public partial class MainView : UserControl
                 // Taps are handled app-wide via App.ScreenTapped (the native view's own click
                 // listener is unreliable once video plays), so the per-view callback is a no-op.
                 VideoHost.Content = factory(viewModel.MediaPlayer, () => { });
+                App.ScreenTapped = () =>
+                {
+                    if (viewModel.CurrentChannel is not null)
+                    {
+                        viewModel.NotifyPointerActivity();
+                    }
+                };
                 App.BackHandler = () =>
                 {
                     if (viewModel.CurrentChannel is null)
@@ -265,13 +282,6 @@ public partial class MainView : UserControl
                     viewModel.ClosePlayer();
                     return true;
                 };
-                App.ScreenTapped = () =>
-                {
-                    if (viewModel.IsPlayerVisible && viewModel.CurrentChannel is not null)
-                    {
-                        viewModel.NotifyPointerActivity();
-                    }
-                };
             }
         }
     }
@@ -281,6 +291,10 @@ public partial class MainView : UserControl
         if (e.PropertyName == nameof(MainViewModel.IsFullscreen) && _viewModel is not null)
         {
             ApplyFullscreen(_viewModel.IsFullscreen);
+        }
+        else if (e.PropertyName == nameof(MainViewModel.IsControlsVisible))
+        {
+            ApplyAndroidControlsVisibility();
         }
         else if (e.PropertyName == nameof(MainViewModel.IsBrowserVisible))
         {
@@ -301,7 +315,8 @@ public partial class MainView : UserControl
         var browsing = _viewModel.IsBrowserVisible;
         var rows = RootGrid.RowDefinitions;
         rows[1].Height = browsing ? new GridLength(0) : new GridLength(1, GridUnitType.Star);
-        rows[2].Height = new GridLength(0);
+        rows[2].Height = GridLength.Auto;
+        ApplyAndroidControlsVisibility();
         rows[3].Height = browsing ? new GridLength(1, GridUnitType.Star) : new GridLength(0);
 
         // Keeps content inside the TV-safe area while browsing; the video goes edge to edge.
@@ -327,6 +342,23 @@ public partial class MainView : UserControl
                 Focus(NavigationMethod.Directional);
             }
         }, DispatcherPriority.Background);
+    }
+
+    // The inline controls row collapses on auto-hide (the video grows into its space); any tap or
+    // key brings it back. Focus goes to this view while hidden so remote keys still reach it.
+    private void ApplyAndroidControlsVisibility()
+    {
+        if (_androidControls is null || _viewModel is null)
+        {
+            return;
+        }
+
+        var show = !_viewModel.IsBrowserVisible && _viewModel.IsControlsVisible;
+        _androidControls.IsVisible = show;
+        if (!show && !_viewModel.IsBrowserVisible)
+        {
+            Focus(NavigationMethod.Directional);
+        }
     }
 
     // Remote shortcuts while a channel is playing: OK = play/pause, Left/Right = +-10s,

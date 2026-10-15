@@ -12,7 +12,7 @@ using Avalonia.Android;
 namespace IptvClient.Android;
 
 [Activity(
-    Label = "IptvClient.Android",
+    Label = "IPTV Multi-Client",
     Theme = "@style/MyTheme.NoActionBar",
     Icon = "@drawable/icon",
     MainLauncher = true,
@@ -49,10 +49,6 @@ public class MainActivity : AvaloniaMainActivity
             activity.OnBackPressedDispatcher.OnBackPressed();
         }
     }
-
-    // Once libVLC is rendering, its surface stops delivering touches to any view layered over it
-    // (confirmed on device: tapping worked on the black idle surface, not once video played), so
-    // the tap that reveals the player controls is caught here, before view dispatch.
     public override bool DispatchTouchEvent(MotionEvent? e)
     {
         if (e?.Action == MotionEventActions.Up)

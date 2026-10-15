@@ -21,7 +21,6 @@ public partial class MainViewModel : ViewModelBase, IDisposable
     private readonly DispatcherTimer _hideControlsTimer;
     private bool _isSyncingPosition;
     private bool _hasPlaylist;
-    private bool _popupArmed;
     private string _playlistSummary = "Aucune playlist chargée.";
 
     public MainViewModel()
@@ -190,27 +189,10 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         OnPropertyChanged(nameof(ShowPlaylistBar));
         OnPropertyChanged(nameof(IsPlayerVisible));
 
-        _popupArmed = !UsesPlayerScreen && value is not null;
-        if (UsesPlayerScreen && value is not null)
-        {
-            DispatcherTimer.RunOnce(() =>
-            {
-                _popupArmed = CurrentChannel is not null;
-                UpdateControlsPopup();
-            }, TimeSpan.FromMilliseconds(250));
-        }
-
-        UpdateControlsPopup();
+        // Desktop-only popup: on Android the native video surface paints over any popup, so the
+        // controls are an inline row there (see MainView.axaml.cs).
+        IsControlsPopupOpen = !UsesPlayerScreen && value is not null;
     }
-
-    partial void OnIsControlsVisibleChanged(bool value) => UpdateControlsPopup();
-
-    // Desktop keeps the popup open for the whole playback and fades it by opacity. On Android a
-    // popup is its own window and swallows every touch while open — even fully transparent — so
-    // the Activity-level tap that brings the controls back would never fire; there the popup
-    // only exists while the controls are visible.
-    private void UpdateControlsPopup() =>
-        IsControlsPopupOpen = _popupArmed && (!UsesPlayerScreen || IsControlsVisible);
 
     partial void OnIsMutedChanged(bool value) => OnPropertyChanged(nameof(IsUnmuted));
 
@@ -437,7 +419,7 @@ public partial class MainViewModel : ViewModelBase, IDisposable
         SelectedSubtitleTrack = SubtitleTracks.FirstOrDefault(t => t.Id == MediaPlayer.Spu)
             ?? SubtitleTracks.FirstOrDefault(t => t.Id == previousSubtitle);
 
-        StreamInfoText = media is null ? null : BuildStreamInfoText(media);
+        StreamInfoText = media is null || UsesPlayerScreen ? null : BuildStreamInfoText(media);
     }
 
     private static string BuildStreamInfoText(Media media)

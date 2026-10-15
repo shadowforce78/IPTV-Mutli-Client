@@ -612,15 +612,16 @@ edge to edge, Back (AndroidX `OnBackPressedCallback` in `MainActivity` →
 `:focus-visible` ring styles in `App.axaml`, Enter plays the focused channel, in the
 player OK = play/pause, ←/→ = ±10s, any key reveals controls.
 
-Two airspace-class traps, both confirmed on a physical device: (1) a `Popup` is its
-own Android window and **swallows every touch while open, even at opacity 0** — so on
-Android the controls popup is only open while `IsControlsVisible`
-(`UpdateControlsPopup`), and the reveal tap is caught in
-`MainActivity.DispatchTouchEvent` → `App.ScreenTapped` (a click listener on the
-libVLC surface/overlay stops firing once video plays). (2) A Popup anchors to its
-target once, when it opens, so it is opened ~250ms *after* the layout swap, else it
-sticks to the top of the screen. The URL bar is hidden on Android once a playlist
-has loaded (`ShowPlaylistBar`) to give the lists vertical room.
+Airspace trap, confirmed on a physical device: the native libVLC surface paints
+over **any Avalonia `Popup`** (and a Popup window also swallows touches while open), so
+the desktop overlay-popup controls can't be used on Android. There the same
+`PlayerControlsView` is added by code as an always-visible row under the video
+(`MainView` ctor / `ApplyAndroidLayout`, grid row 2), and the popup stays closed
+(`IsControlsPopupOpen` is desktop-only). It auto-hides like desktop (the row collapses and
+the video grows); a tap anywhere — caught in `MainActivity.DispatchTouchEvent` →
+`App.ScreenTapped`, since a click listener on the libVLC surface stops firing once video
+plays — or any remote key brings it back. The URL bar is hidden on Android once a
+playlist has loaded (`ShowPlaylistBar`) to give the lists vertical room.
 
 ## Testing the app visually on Windows
 
