@@ -371,6 +371,25 @@ public partial class MainView : UserControl
     // always leave; Left/Right leave only when the caret is already at that edge.
     private void OnTextBoxRemoteNav(object? sender, KeyEventArgs e)
     {
+        // Focus can end up on this view itself (nothing inside focused), where XYFocus has no
+        // origin and every arrow key is dead: land on the current tab's list first.
+        if (_viewModel is { IsBrowserVisible: true } && e.Key is Key.Up or Key.Down or Key.Left or Key.Right or Key.Enter
+            && TopLevel.GetTopLevel(this)?.FocusManager?.GetFocusedElement() is null or MainView
+            && (Tabs.SelectedItem as TabItem)?.Content is ChannelListView list)
+        {
+            list.FocusItems();
+            e.Handled = true;
+            return;
+        }
+
+        // The tab strip also eats Down without moving focus, stranding the remote on the tabs.
+        if (e.Source is TabItem && e.Key == Key.Down
+            && TopLevel.GetTopLevel(this)?.FocusManager?.TryMoveFocus(NavigationDirection.Down) == true)
+        {
+            e.Handled = true;
+            return;
+        }
+
         if (e.Source is not TextBox box)
         {
             return;

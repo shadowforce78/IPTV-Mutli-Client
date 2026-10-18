@@ -54,7 +54,8 @@ public partial class App : Application
 
         AvaloniaXamlLoader.Load(this);
 #if DEBUG
-        this.AttachDeveloperTools();
+        if (!OperatingSystem.IsAndroid()) // no DevTools host on device: it throws DevToolsUnreachableException
+            this.AttachDeveloperTools();
 #endif
     }
 
